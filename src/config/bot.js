@@ -136,7 +136,7 @@ export const botConfig = {
     },
     footer: {
       // Default footer text used in bot embeds.
-      text: "Ragnir Bot",
+      text: process.env.BOT_NAME || "Ragnir Bot",
       // Footer icon URL (null = no icon).
       icon: null,
     },
