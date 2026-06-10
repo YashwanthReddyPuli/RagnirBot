@@ -410,6 +410,7 @@ export default {
       const am = config.automod;
       const status = am.enabled ? '🟢 **Enabled**' : '🔴 **Disabled**';
       const logChannel = am.logChannelId ? `<#${am.logChannelId}>` : '`Global Log Channel`';
+      const timeoutVal = am.timeoutDuration || 600000;
 
       const getActionsText = (settings) => {
         const acts = settings.actions || (settings.action ? [settings.action] : []);
@@ -423,6 +424,7 @@ export default {
         .addFields(
           { name: 'Global State', value: status, inline: true },
           { name: 'Logs Channel', value: logChannel, inline: true },
+          { name: 'Timeout Duration', value: `\`${timeoutVal / 60000}m\``, inline: true },
           { 
             name: 'Invite Filter', 
             value: `State: ${am.invite.enabled ? '🟢' : '🔴'}\nActions: ${getActionsText(am.invite)}`, 
@@ -473,7 +475,8 @@ export default {
           { label: 'Prohibited Words Filter', value: 'words', description: 'Censor banned words' },
           { label: 'Mass Mentions Filter', value: 'mentions', description: 'Limit maximum mentions in a message' },
           { label: 'Anti-Spam Filter', value: 'spam', description: 'Rate limit message frequency' },
-          { label: 'Bypass Whitelists', value: 'whitelist', description: 'Ignored channels and roles' }
+          { label: 'Bypass Whitelists', value: 'whitelist', description: 'Ignored channels and roles' },
+          { label: 'Timeout Duration Settings', value: 'timeout_duration', description: 'Set custom mute/timeout length' }
         ])
     );
 
@@ -537,7 +540,7 @@ export default {
           .addOptions([
             { label: 'Delete Message', value: 'delete', description: 'Deletes the triggering message', default: acts.includes('delete') },
             { label: 'Warn User', value: 'warn', description: 'Gives the user an official warning', default: acts.includes('warn') },
-            { label: 'Timeout User (10m)', value: 'timeout', description: 'Mutes the user for 10 minutes', default: acts.includes('timeout') }
+            { label: 'Timeout User', value: 'timeout', description: 'Mutes the user dynamically', default: acts.includes('timeout') }
           ])
       );
     };
@@ -558,6 +561,33 @@ export default {
         .setTimestamp();
     };
 
+    const generateTimeoutDurationEmbed = (config) => {
+      const am = config.automod;
+      const durationMs = am.timeoutDuration || 600000;
+      return new EmbedBuilder()
+        .setTitle('⏱️ Configure AutoMod Timeout Length')
+        .setDescription('Select how long users should be timed out (muted) when the timeout punishment is triggered.')
+        .setColor('#336699')
+        .addFields({ name: 'Current Timeout Length', value: `\`${durationMs / 60000} minutes\` (\`${durationMs}ms\`)` })
+        .setTimestamp();
+    };
+
+    const timeoutDurationRowSelect = (currentDurationMs) => new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId('am_set_timeout_duration')
+        .setPlaceholder('Select timeout duration...')
+        .addOptions([
+          { label: '1 minute', value: '60000', default: currentDurationMs === 60000 },
+          { label: '5 minutes', value: '300000', default: currentDurationMs === 300000 },
+          { label: '10 minutes', value: '600000', default: currentDurationMs === 600000 },
+          { label: '30 minutes', value: '1800000', default: currentDurationMs === 1800000 },
+          { label: '1 hour', value: '3600000', default: currentDurationMs === 3600000 },
+          { label: '6 hours', value: '21600000', default: currentDurationMs === 21600000 },
+          { label: '12 hours', value: '43200000', default: currentDurationMs === 43200000 },
+          { label: '24 hours', value: '86400000', default: currentDurationMs === 86400000 }
+        ])
+    );
+
     const response = await (interaction.deferred || interaction.replied
       ? interaction.editReply({
           embeds: [generateMainEmbed(guildConfig)],
@@ -576,7 +606,7 @@ export default {
       time: 180000
     });
 
-    let currentFilterView = null; // null for main, or 'invite', 'link', 'words', 'mentions', 'spam', 'whitelist'
+    let currentFilterView = null; // null for main, or 'invite', 'link', 'words', 'mentions', 'spam', 'whitelist', 'timeout_duration'
 
     collector.on('collect', async (i) => {
       try {
@@ -602,6 +632,14 @@ export default {
               components: [
                 new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('am_whitelist_channel').setPlaceholder('Toggle whitelisted channel...')),
                 new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('am_whitelist_role').setPlaceholder('Toggle whitelisted role...')),
+                new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('am_back_to_main').setLabel('Back to Main').setStyle(ButtonStyle.Secondary))
+              ]
+            });
+          } else if (currentFilterView === 'timeout_duration') {
+            return await i.editReply({
+              embeds: [generateTimeoutDurationEmbed(currentConfig)],
+              components: [
+                timeoutDurationRowSelect(currentConfig.automod.timeoutDuration || 600000),
                 new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('am_back_to_main').setLabel('Back to Main').setStyle(ButtonStyle.Secondary))
               ]
             });
@@ -646,6 +684,14 @@ export default {
               components: [
                 new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('am_whitelist_channel').setPlaceholder('Toggle whitelisted channel...')),
                 new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('am_whitelist_role').setPlaceholder('Toggle whitelisted role...')),
+                new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('am_back_to_main').setLabel('Back to Main').setStyle(ButtonStyle.Secondary))
+              ]
+            });
+          } else if (val === 'timeout_duration') {
+            return await i.editReply({
+              embeds: [generateTimeoutDurationEmbed(currentConfig)],
+              components: [
+                timeoutDurationRowSelect(currentConfig.automod.timeoutDuration || 600000),
                 new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('am_back_to_main').setLabel('Back to Main').setStyle(ButtonStyle.Secondary))
               ]
             });
@@ -952,6 +998,22 @@ export default {
           return await i.editReply({
             embeds: [generateFilterEmbed(currentConfig, 'spam')],
             components
+          });
+        }
+
+        // Set Timeout Duration Selection
+        if (i.customId === 'am_set_timeout_duration') {
+          const duration = parseInt(i.values[0]);
+          currentConfig.automod.timeoutDuration = duration;
+          await setGuildConfig(client, interaction.guild.id, currentConfig);
+          await i.deferUpdate();
+          guildConfig = currentConfig;
+          return await i.editReply({
+            embeds: [generateTimeoutDurationEmbed(currentConfig)],
+            components: [
+              timeoutDurationRowSelect(duration),
+              new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('am_back_to_main').setLabel('Back to Main').setStyle(ButtonStyle.Secondary))
+            ]
           });
         }
 

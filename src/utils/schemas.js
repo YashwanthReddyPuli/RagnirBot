@@ -64,6 +64,7 @@ const AutoModConfigSchema = z.object({
   logChannelId: z.string().nullable().optional(),
   ignoredChannels: z.array(z.string()).default([]),
   ignoredRoles: z.array(z.string()).default([]),
+  timeoutDuration: z.number().int().min(1000).default(600000),
   invite: z.object({
     enabled: z.boolean().default(false),
     actions: z.array(z.enum(['delete', 'warn', 'timeout'])).default(['delete'])

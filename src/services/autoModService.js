@@ -3,6 +3,7 @@ import { logger } from '../utils/logger.js';
 import { getGuildConfig } from './guildConfig.js';
 import { WarningService } from './warningService.js';
 import { ModerationService } from './moderationService.js';
+import { logModerationAction } from '../utils/moderation.js';
 
 // In-memory rate limiting for anti-spam
 // Key: guildId:userId -> Array of timestamps
@@ -185,6 +186,24 @@ export const AutoModService = {
         });
 
         if (result.success) {
+          await logModerationAction({
+            client,
+            guild,
+            event: {
+              action: "User Warned",
+              target: `${author.tag} (${author.id})`,
+              executor: `${client.user.tag} (${client.user.id})`,
+              reason: `[AutoMod] ${reason}`,
+              metadata: {
+                userId: author.id,
+                moderatorId: client.user.id,
+                totalWarns: result.totalCount,
+                warningNumber: result.totalCount,
+                warningId: result.id
+              }
+            }
+          });
+
           await message.channel.send({
             content: `⚠️ ${author}, you have been warned for **${reason}**. (Total warnings: ${result.totalCount})`
           }).then(msg => setTimeout(() => msg.delete().catch(() => {}), 5000));
@@ -196,19 +215,37 @@ export const AutoModService = {
       if (actions.includes('timeout')) {
         const botMember = await guild.members.fetch(client.user.id).catch(() => null);
         if (botMember && member && member.moderatable && botMember.roles.highest.position > member.roles.highest.position) {
-          const tenMinutesMs = 10 * 60 * 1000;
+          const timeoutDurationMs = guildConfig.automod?.timeoutDuration || 10 * 60 * 1000;
           await ModerationService.timeoutUser({
             guild,
             member,
             moderator: botMember,
-            durationMs: tenMinutesMs,
+            durationMs: timeoutDurationMs,
             reason: `[AutoMod] ${reason}`
           });
 
+          const durationMinutesText = `${timeoutDurationMs / 60000}m`;
+          await logModerationAction({
+            client,
+            guild,
+            event: {
+              action: "Member Timed Out",
+              target: `${author.tag} (${author.id})`,
+              executor: `${client.user.tag} (${client.user.id})`,
+              reason: `[AutoMod] ${reason}`,
+              duration: durationMinutesText,
+              metadata: {
+                userId: author.id,
+                moderatorId: client.user.id,
+                durationMs: timeoutDurationMs
+              }
+            }
+          });
+
           await message.channel.send({
-            content: `🔇 ${author} has been timed out for 10 minutes due to: **${reason}**.`
+            content: `🔇 ${author} has been timed out for ${durationMinutesText} due to: **${reason}**.`
           }).then(msg => setTimeout(() => msg.delete().catch(() => {}), 10000));
-          actionsExecuted.push('TIMEOUT (10m)');
+          actionsExecuted.push(`TIMEOUT (${durationMinutesText})`);
         } else {
           // Fallback to warn if bot hierarchy prevents timeout
           const result = await WarningService.addWarning({
@@ -216,6 +253,24 @@ export const AutoModService = {
             userId: author.id,
             moderatorId: client.user.id,
             reason: `[AutoMod Retry] ${reason}`
+          });
+
+          await logModerationAction({
+            client,
+            guild,
+            event: {
+              action: "User Warned",
+              target: `${author.tag} (${author.id})`,
+              executor: `${client.user.tag} (${client.user.id})`,
+              reason: `[AutoMod Retry] ${reason}`,
+              metadata: {
+                userId: author.id,
+                moderatorId: client.user.id,
+                totalWarns: result.totalCount,
+                warningNumber: result.totalCount,
+                warningId: result.id
+              }
+            }
           });
           actionsExecuted.push(`WARN (Hierarchy fallback - total warnings: ${result.totalCount})`);
         }

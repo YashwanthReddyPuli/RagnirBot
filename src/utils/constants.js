@@ -79,6 +79,7 @@ export const DEFAULT_GUILD_CONFIG = {
         logChannelId: null,
         ignoredChannels: [],
         ignoredRoles: [],
+        timeoutDuration: 600000,
         invite: { enabled: false, actions: ['delete'] },
         link: { enabled: false, actions: ['delete'] },
         words: { enabled: false, actions: ['delete'], list: [] },
