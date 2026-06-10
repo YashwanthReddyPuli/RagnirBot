@@ -284,11 +284,18 @@ export default {
         .setPlaceholder('Select a role to configure whitelisted events')
     );
 
-    const response = await InteractionHelper.universalReply(interaction, {
-      embeds: [generatePanelEmbed(guildConfig)],
-      components: [rowButtons, rowUserSelect, rowRoleSelect],
-      fetchReply: true
-    });
+    const response = await (interaction.deferred || interaction.replied
+      ? interaction.editReply({
+          embeds: [generatePanelEmbed(guildConfig)],
+          components: [rowButtons, rowUserSelect, rowRoleSelect],
+          fetchReply: true
+        })
+      : interaction.reply({
+          embeds: [generatePanelEmbed(guildConfig)],
+          components: [rowButtons, rowUserSelect, rowRoleSelect],
+          fetchReply: true
+        })
+    );
 
     const collector = response.createMessageComponentCollector({
       filter: (i) => i.user.id === interaction.user.id,
