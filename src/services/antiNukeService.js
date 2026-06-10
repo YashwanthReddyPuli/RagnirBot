@@ -42,8 +42,8 @@ export const AntiNukeService = {
       const antinuke = config.antinuke;
       const executorId = executor.id;
 
-      // 2. Server Owner is always exempt
-      if (executorId === guild.ownerId) {
+      // 2. Server Owner and designated anti-nuke owners are always exempt
+      if (executorId === guild.ownerId || antinuke.extraOwners?.includes(executorId)) {
         return false;
       }
 

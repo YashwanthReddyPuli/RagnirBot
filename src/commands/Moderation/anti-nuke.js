@@ -91,6 +91,23 @@ export default {
       subcmd.setName('whitelist-list').setDescription('List all whitelisted users and roles')
     )
     .addSubcommand(subcmd =>
+      subcmd.setName('owner-add')
+        .setDescription('Add a user to the designated Anti-Nuke Owners (Primary Owner Only)')
+        .addUserOption(opt =>
+          opt.setName('user').setDescription('User to add').setRequired(true)
+        )
+    )
+    .addSubcommand(subcmd =>
+      subcmd.setName('owner-remove')
+        .setDescription('Remove a user from designated Anti-Nuke Owners (Primary Owner Only)')
+        .addUserOption(opt =>
+          opt.setName('user').setDescription('User to remove').setRequired(true)
+        )
+    )
+    .addSubcommand(subcmd =>
+      subcmd.setName('owner-list').setDescription('List all designated Anti-Nuke Owners')
+    )
+    .addSubcommand(subcmd =>
       subcmd.setName('panel').setDescription('Open the interactive Anti-Nuke Control Panel')
     ),
 
@@ -106,6 +123,7 @@ export default {
       guildConfig.antinuke = {
         enabled: false,
         logChannelId: null,
+        extraOwners: [],
         whitelistedUsers: {},
         whitelistedRoles: {},
         settings: {
@@ -125,6 +143,27 @@ export default {
           emojiUpdate: { limit: 5, timeframe: 15000, action: 'demote' }
         }
       };
+    }
+
+    if (!guildConfig.antinuke.extraOwners) {
+      guildConfig.antinuke.extraOwners = [];
+    }
+
+    const isPrimaryOwner = interaction.user.id === interaction.guild.ownerId;
+    const isExtraOwner = guildConfig.antinuke.extraOwners.includes(interaction.user.id);
+
+    if (!isPrimaryOwner && !isExtraOwner) {
+      return await InteractionHelper.universalReply(interaction, {
+        embeds: [errorEmbed('❌ Access Denied', 'Only the Server Owner or designated Anti-Nuke Owners can configure this.')],
+        flags: ['Ephemeral']
+      });
+    }
+
+    if (['owner-add', 'owner-remove'].includes(subcommand) && !isPrimaryOwner) {
+      return await InteractionHelper.universalReply(interaction, {
+        embeds: [errorEmbed('❌ Access Denied', 'Only the Server Owner (primary owner) can add or remove Anti-Nuke Owners.')],
+        flags: ['Ephemeral']
+      });
     }
 
     try {
@@ -226,6 +265,50 @@ export default {
           rolesDesc += `<@&${roleId}>: \`${formatted}\`\n`;
         }
         embed.addFields({ name: 'Whitelisted Roles', value: rolesDesc || 'No roles whitelisted' });
+
+        return await InteractionHelper.universalReply(interaction, { embeds: [embed] });
+      }
+
+      if (subcommand === 'owner-add') {
+        const user = interaction.options.getUser('user');
+        if (guildConfig.antinuke.extraOwners.includes(user.id)) {
+          return await InteractionHelper.universalReply(interaction, {
+            embeds: [errorEmbed('❌ Already Owner', `**${user.tag}** is already a designated Anti-Nuke Owner.`)]
+          });
+        }
+        guildConfig.antinuke.extraOwners.push(user.id);
+        await setGuildConfig(client, guildId, guildConfig);
+        return await InteractionHelper.universalReply(interaction, {
+          embeds: [successEmbed('👑 Owner Added', `Successfully added **${user.tag}** as a designated Anti-Nuke Owner.`)]
+        });
+      }
+
+      if (subcommand === 'owner-remove') {
+        const user = interaction.options.getUser('user');
+        if (!guildConfig.antinuke.extraOwners.includes(user.id)) {
+          return await InteractionHelper.universalReply(interaction, {
+            embeds: [errorEmbed('❌ Not Owner', `**${user.tag}** is not a designated Anti-Nuke Owner.`)]
+          });
+        }
+        guildConfig.antinuke.extraOwners = guildConfig.antinuke.extraOwners.filter(id => id !== user.id);
+        await setGuildConfig(client, guildId, guildConfig);
+        return await InteractionHelper.universalReply(interaction, {
+          embeds: [successEmbed('👑 Owner Removed', `Successfully removed **${user.tag}** from designated Anti-Nuke Owners.`)]
+        });
+      }
+
+      if (subcommand === 'owner-list') {
+        const embed = new EmbedBuilder()
+          .setTitle('👑 Anti-Nuke Designated Owners')
+          .setColor('#336699')
+          .setDescription(`Primary Server Owner: <@${interaction.guild.ownerId}>`)
+          .setTimestamp();
+
+        let ownersDesc = '';
+        for (const ownerId of guildConfig.antinuke.extraOwners || []) {
+          ownersDesc += `<@${ownerId}> (\`${ownerId}\`)\n`;
+        }
+        embed.addFields({ name: 'Designated Extra Owners', value: ownersDesc || 'No extra owners designated.' });
 
         return await InteractionHelper.universalReply(interaction, { embeds: [embed] });
       }

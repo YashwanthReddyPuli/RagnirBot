@@ -54,6 +54,7 @@ export const DEFAULT_GUILD_CONFIG = {
     antinuke: {
         enabled: false,
         logChannelId: null,
+        extraOwners: [],
         whitelistedUsers: {},
         whitelistedRoles: {},
         settings: {

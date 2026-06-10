@@ -53,6 +53,7 @@ const AntiNukeSettingSchema = z.object({
 const AntiNukeConfigSchema = z.object({
   enabled: z.boolean().default(false),
   logChannelId: z.string().nullable().optional(),
+  extraOwners: z.array(z.string()).default([]),
   whitelistedUsers: z.record(z.union([z.boolean(), z.array(z.string())])).default({}),
   whitelistedRoles: z.record(z.union([z.boolean(), z.array(z.string())])).default({}),
   settings: z.record(AntiNukeSettingSchema).optional()
