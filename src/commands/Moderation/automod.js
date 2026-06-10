@@ -2,7 +2,13 @@ import {
   SlashCommandBuilder, 
   PermissionFlagsBits, 
   EmbedBuilder, 
-  ChannelType 
+  ChannelType,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  StringSelectMenuBuilder,
+  ChannelSelectMenuBuilder,
+  RoleSelectMenuBuilder
 } from 'discord.js';
 import { getGuildConfig, setGuildConfig } from '../../services/guildConfig.js';
 import { successEmbed, errorEmbed, infoEmbed } from '../../utils/embeds.js';
@@ -137,6 +143,9 @@ export default {
         .addRoleOption(opt =>
           opt.setName('role').setDescription('Target role').setRequired(true)
         )
+    )
+    .addSubcommand(subcmd =>
+      subcmd.setName('panel').setDescription('Open the interactive AutoMod Control Panel')
     ),
 
   category: 'Moderation',
@@ -359,11 +368,603 @@ export default {
         }
       }
 
+      if (subcommand === 'panel') {
+        return await this.sendPanel(interaction, guildConfig, client);
+      }
+
     } catch (err) {
       logger.error('Error in automod command execution:', err);
       return await InteractionHelper.universalReply(interaction, {
         embeds: [errorEmbed('An error occurred while running the AutoMod configuration.')]
       });
     }
+  },
+
+  async sendPanel(interaction, guildConfig, client) {
+    const generateMainEmbed = (config) => {
+      const am = config.automod;
+      const status = am.enabled ? '🟢 **Enabled**' : '🔴 **Disabled**';
+
+      return new EmbedBuilder()
+        .setTitle('🛡️ AutoMod Control Panel')
+        .setDescription('Manage your server auto-moderation filters, rules, action punishments, and whitelists directly below.')
+        .setColor('#336699')
+        .addFields(
+          { name: 'Global State', value: status, inline: false },
+          { 
+            name: 'Invite Filter', 
+            value: `State: ${am.invite.enabled ? '🟢' : '🔴'}\nAction: \`${am.invite.action}\``, 
+            inline: true 
+          },
+          { 
+            name: 'Links Filter', 
+            value: `State: ${am.link.enabled ? '🟢' : '🔴'}\nAction: \`${am.link.action}\``, 
+            inline: true 
+          },
+          { 
+            name: 'Word Blacklist', 
+            value: `State: ${am.words.enabled ? '🟢' : '🔴'}\nAction: \`${am.words.action}\`\nWords: \`${am.words.list?.length || 0} loaded\``, 
+            inline: true 
+          },
+          { 
+            name: 'Mentions Limit', 
+            value: `State: ${am.mentions.enabled ? '🟢' : '🔴'}\nLimit: \`${am.mentions.limit} pings\`\nAction: \`${am.mentions.action}\``, 
+            inline: true 
+          },
+          { 
+            name: 'Anti-Spam Rate', 
+            value: `State: ${am.spam.enabled ? '🟢' : '🔴'}\nThreshold: \`${am.spam.limit} msgs / ${am.spam.timeframe}ms\`\nAction: \`${am.spam.action}\``, 
+            inline: true 
+          }
+        )
+        .setTimestamp();
+    };
+
+    const mainRowButtons = () => new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('am_toggle_state')
+        .setLabel(guildConfig.automod.enabled ? 'Disable AutoMod' : 'Enable AutoMod')
+        .setStyle(guildConfig.automod.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId('am_refresh')
+        .setLabel('Refresh')
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+    const mainRowSelect = () => new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId('am_select_filter')
+        .setPlaceholder('Select a filter to configure...')
+        .addOptions([
+          { label: 'Invite Links Filter', value: 'invite', description: 'Block discord server invite links' },
+          { label: 'External Links Filter', value: 'link', description: 'Block all external hyperlinks' },
+          { label: 'Prohibited Words Filter', value: 'words', description: 'Censor banned words' },
+          { label: 'Mass Mentions Filter', value: 'mentions', description: 'Limit maximum mentions in a message' },
+          { label: 'Anti-Spam Filter', value: 'spam', description: 'Rate limit message frequency' },
+          { label: 'Bypass Whitelists', value: 'whitelist', description: 'Ignored channels and roles' }
+        ])
+    );
+
+    const generateFilterEmbed = (config, filterName) => {
+      const am = config.automod;
+      const settings = am[filterName];
+      const filterTitles = {
+        invite: 'Invite Links Filter',
+        link: 'External Links Filter',
+        words: 'Prohibited Words Filter',
+        mentions: 'Mass Mentions Filter',
+        spam: 'Anti-Spam Filter'
+      };
+
+      const embed = new EmbedBuilder()
+        .setTitle(`⚙️ Configure: ${filterTitles[filterName]}`)
+        .setColor('#336699')
+        .addFields(
+          { name: 'Status', value: settings.enabled ? '🟢 **Enabled**' : '🔴 **Disabled**', inline: true },
+          { name: 'Current Punishment', value: `\`${settings.action}\``, inline: true }
+        );
+
+      if (filterName === 'words') {
+        embed.addFields({ name: 'Loaded Words', value: `\`${settings.list?.length || 0}\` words blacklisted. Manage via \`/automod blacklist-word\`.`, inline: false });
+      } else if (filterName === 'mentions') {
+        embed.addFields({ name: 'Mention Limit', value: `\`${settings.limit}\` maximum user/role mentions per message.`, inline: false });
+      } else if (filterName === 'spam') {
+        embed.addFields(
+          { name: 'Spam Limit', value: `\`${settings.limit}\` messages allowed`, inline: true },
+          { name: 'Timeframe', value: `\`${settings.timeframe}ms\``, inline: true }
+        );
+      }
+
+      return embed;
+    };
+
+    const filterRowButtons = (filterName, isEnabled) => new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`am_toggle_filter_${filterName}`)
+        .setLabel(isEnabled ? 'Disable Filter' : 'Enable Filter')
+        .setStyle(isEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId('am_back_to_main')
+        .setLabel('Back to Main')
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+    const filterRowActionSelect = (filterName, currentAction) => new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId(`am_action_filter_${filterName}`)
+        .setPlaceholder('Choose punishment action...')
+        .addOptions(ACTIONS_CHOICES.map(choice => ({
+          label: choice.name,
+          value: choice.value,
+          default: choice.value === currentAction
+        })))
+    );
+
+    const generateWhitelistEmbed = (config) => {
+      const am = config.automod;
+      const chanList = am.ignoredChannels?.map(id => `<#${id}>`).join(', ') || 'None';
+      const roleList = am.ignoredRoles?.map(id => `<@&${id}>`).join(', ') || 'None';
+
+      return new EmbedBuilder()
+        .setTitle('🛡️ AutoMod Exemptions & Whitelists')
+        .setDescription('Channels and roles selected below are ignored by all AutoMod scanning rules.')
+        .setColor('#336699')
+        .addFields(
+          { name: 'Whitelisted Channels', value: chanList, inline: false },
+          { name: 'Whitelisted Roles', value: roleList, inline: false }
+        )
+        .setTimestamp();
+    };
+
+    const response = await (interaction.deferred || interaction.replied
+      ? interaction.editReply({
+          embeds: [generateMainEmbed(guildConfig)],
+          components: [mainRowButtons(), mainRowSelect()],
+          fetchReply: true
+        })
+      : interaction.reply({
+          embeds: [generateMainEmbed(guildConfig)],
+          components: [mainRowButtons(), mainRowSelect()],
+          fetchReply: true
+        })
+    );
+
+    const collector = response.createMessageComponentCollector({
+      filter: (i) => i.user.id === interaction.user.id,
+      time: 180000
+    });
+
+    let currentFilterView = null; // null for main, or 'invite', 'link', 'words', 'mentions', 'spam', 'whitelist'
+
+    collector.on('collect', async (i) => {
+      try {
+        let currentConfig = await getGuildConfig(client, interaction.guild.id);
+
+        if (i.customId === 'am_toggle_state') {
+          currentConfig.automod.enabled = !currentConfig.automod.enabled;
+          await setGuildConfig(client, interaction.guild.id, currentConfig);
+          await i.deferUpdate();
+          guildConfig = currentConfig;
+          return await i.editReply({
+            embeds: [generateMainEmbed(currentConfig)],
+            components: [mainRowButtons(), mainRowSelect()]
+          });
+        }
+
+        if (i.customId === 'am_refresh') {
+          await i.deferUpdate();
+          guildConfig = currentConfig;
+          if (currentFilterView === 'whitelist') {
+            return await i.editReply({
+              embeds: [generateWhitelistEmbed(currentConfig)],
+              components: [
+                new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('am_whitelist_channel').setPlaceholder('Toggle whitelisted channel...')),
+                new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('am_whitelist_role').setPlaceholder('Toggle whitelisted role...')),
+                new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('am_back_to_main').setLabel('Back to Main').setStyle(ButtonStyle.Secondary))
+              ]
+            });
+          } else if (currentFilterView && currentFilterView !== 'whitelist') {
+            const isEnabled = currentConfig.automod[currentFilterView].enabled;
+            const currentAction = currentConfig.automod[currentFilterView].action;
+            const components = [
+              filterRowButtons(currentFilterView, isEnabled),
+              filterRowActionSelect(currentFilterView, currentAction)
+            ];
+            return await i.editReply({
+              embeds: [generateFilterEmbed(currentConfig, currentFilterView)],
+              components
+            });
+          } else {
+            return await i.editReply({
+              embeds: [generateMainEmbed(currentConfig)],
+              components: [mainRowButtons(), mainRowSelect()]
+            });
+          }
+        }
+
+        if (i.customId === 'am_back_to_main') {
+          currentFilterView = null;
+          await i.deferUpdate();
+          guildConfig = currentConfig;
+          return await i.editReply({
+            embeds: [generateMainEmbed(currentConfig)],
+            components: [mainRowButtons(), mainRowSelect()]
+          });
+        }
+
+        if (i.customId === 'am_select_filter') {
+          const val = i.values[0];
+          currentFilterView = val;
+          await i.deferUpdate();
+          guildConfig = currentConfig;
+
+          if (val === 'whitelist') {
+            return await i.editReply({
+              embeds: [generateWhitelistEmbed(currentConfig)],
+              components: [
+                new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('am_whitelist_channel').setPlaceholder('Toggle whitelisted channel...')),
+                new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('am_whitelist_role').setPlaceholder('Toggle whitelisted role...')),
+                new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('am_back_to_main').setLabel('Back to Main').setStyle(ButtonStyle.Secondary))
+              ]
+            });
+          } else {
+            const isEnabled = currentConfig.automod[val].enabled;
+            const currentAction = currentConfig.automod[val].action;
+            const components = [
+              filterRowButtons(val, isEnabled),
+              filterRowActionSelect(val, currentAction)
+            ];
+
+            if (val === 'mentions') {
+              // Add limits select row
+              components.push(
+                new ActionRowBuilder().addComponents(
+                  new StringSelectMenuBuilder()
+                    .setCustomId('am_limit_filter_mentions')
+                    .setPlaceholder('Set maximum mention limit...')
+                    .addOptions([3, 5, 8, 10, 15, 20].map(limit => ({
+                      label: `${limit} mentions`,
+                      value: String(limit),
+                      default: currentConfig.automod.mentions.limit === limit
+                    })))
+                )
+              );
+            } else if (val === 'spam') {
+              // Add limit and timeframe select rows
+              components.push(
+                new ActionRowBuilder().addComponents(
+                  new StringSelectMenuBuilder()
+                    .setCustomId('am_limit_filter_spam')
+                    .setPlaceholder('Set spam threshold messages...')
+                    .addOptions([3, 5, 7, 10, 15].map(limit => ({
+                      label: `${limit} messages`,
+                      value: String(limit),
+                      default: currentConfig.automod.spam.limit === limit
+                    })))
+                ),
+                new ActionRowBuilder().addComponents(
+                  new StringSelectMenuBuilder()
+                    .setCustomId('am_timeframe_filter_spam')
+                    .setPlaceholder('Set timeframe limit...')
+                    .addOptions([
+                      { label: '2 seconds', value: '2000' },
+                      { label: '3 seconds', value: '3000' },
+                      { label: '5 seconds', value: '5000' },
+                      { label: '10 seconds', value: '10000' }
+                    ].map(t => ({
+                      ...t,
+                      default: currentConfig.automod.spam.timeframe === parseInt(t.value)
+                    })))
+                )
+              );
+            }
+
+            return await i.editReply({
+              embeds: [generateFilterEmbed(currentConfig, val)],
+              components
+            });
+          }
+        }
+
+        // Handle Sub-toggles
+        if (i.customId.startsWith('am_toggle_filter_')) {
+          const filter = i.customId.replace('am_toggle_filter_', '');
+          currentConfig.automod[filter].enabled = !currentConfig.automod[filter].enabled;
+          await setGuildConfig(client, interaction.guild.id, currentConfig);
+          await i.deferUpdate();
+          guildConfig = currentConfig;
+
+          const isEnabled = currentConfig.automod[filter].enabled;
+          const currentAction = currentConfig.automod[filter].action;
+          const components = [
+            filterRowButtons(filter, isEnabled),
+            filterRowActionSelect(filter, currentAction)
+          ];
+
+          if (filter === 'mentions') {
+            components.push(
+              new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                  .setCustomId('am_limit_filter_mentions')
+                  .setPlaceholder('Set maximum mention limit...')
+                  .addOptions([3, 5, 8, 10, 15, 20].map(limit => ({
+                    label: `${limit} mentions`,
+                    value: String(limit),
+                    default: currentConfig.automod.mentions.limit === limit
+                  })))
+              )
+            );
+          } else if (filter === 'spam') {
+            components.push(
+              new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                  .setCustomId('am_limit_filter_spam')
+                  .setPlaceholder('Set spam threshold messages...')
+                  .addOptions([3, 5, 7, 10, 15].map(limit => ({
+                    label: `${limit} messages`,
+                    value: String(limit),
+                    default: currentConfig.automod.spam.limit === limit
+                  })))
+              ),
+              new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                  .setCustomId('am_timeframe_filter_spam')
+                  .setPlaceholder('Set timeframe limit...')
+                  .addOptions([
+                    { label: '2 seconds', value: '2000' },
+                    { label: '3 seconds', value: '3000' },
+                    { label: '5 seconds', value: '5000' },
+                    { label: '10 seconds', value: '10000' }
+                  ].map(t => ({
+                    ...t,
+                    default: currentConfig.automod.spam.timeframe === parseInt(t.value)
+                  })))
+              )
+            );
+          }
+
+          return await i.editReply({
+            embeds: [generateFilterEmbed(currentConfig, filter)],
+            components
+          });
+        }
+
+        // Handle Action Change Selects
+        if (i.customId.startsWith('am_action_filter_')) {
+          const filter = i.customId.replace('am_action_filter_', '');
+          const action = i.values[0];
+          currentConfig.automod[filter].action = action;
+          await setGuildConfig(client, interaction.guild.id, currentConfig);
+          await i.deferUpdate();
+          guildConfig = currentConfig;
+
+          const isEnabled = currentConfig.automod[filter].enabled;
+          const components = [
+            filterRowButtons(filter, isEnabled),
+            filterRowActionSelect(filter, action)
+          ];
+
+          if (filter === 'mentions') {
+            components.push(
+              new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                  .setCustomId('am_limit_filter_mentions')
+                  .setPlaceholder('Set maximum mention limit...')
+                  .addOptions([3, 5, 8, 10, 15, 20].map(limit => ({
+                    label: `${limit} mentions`,
+                    value: String(limit),
+                    default: currentConfig.automod.mentions.limit === limit
+                  })))
+              )
+            );
+          } else if (filter === 'spam') {
+            components.push(
+              new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                  .setCustomId('am_limit_filter_spam')
+                  .setPlaceholder('Set spam threshold messages...')
+                  .addOptions([3, 5, 7, 10, 15].map(limit => ({
+                    label: `${limit} messages`,
+                    value: String(limit),
+                    default: currentConfig.automod.spam.limit === limit
+                  })))
+              ),
+              new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                  .setCustomId('am_timeframe_filter_spam')
+                  .setPlaceholder('Set timeframe limit...')
+                  .addOptions([
+                    { label: '2 seconds', value: '2000' },
+                    { label: '3 seconds', value: '3000' },
+                    { label: '5 seconds', value: '5000' },
+                    { label: '10 seconds', value: '10000' }
+                  ].map(t => ({
+                    ...t,
+                    default: currentConfig.automod.spam.timeframe === parseInt(t.value)
+                  })))
+              )
+            );
+          }
+
+          return await i.editReply({
+            embeds: [generateFilterEmbed(currentConfig, filter)],
+            components
+          });
+        }
+
+        // Handle Limit for Mentions
+        if (i.customId === 'am_limit_filter_mentions') {
+          const limit = parseInt(i.values[0]);
+          currentConfig.automod.mentions.limit = limit;
+          await setGuildConfig(client, interaction.guild.id, currentConfig);
+          await i.deferUpdate();
+          guildConfig = currentConfig;
+
+          const isEnabled = currentConfig.automod.mentions.enabled;
+          const currentAction = currentConfig.automod.mentions.action;
+          const components = [
+            filterRowButtons('mentions', isEnabled),
+            filterRowActionSelect('mentions', currentAction),
+            new ActionRowBuilder().addComponents(
+              new StringSelectMenuBuilder()
+                .setCustomId('am_limit_filter_mentions')
+                .setPlaceholder('Set maximum mention limit...')
+                .addOptions([3, 5, 8, 10, 15, 20].map(l => ({
+                  label: `${l} mentions`,
+                  value: String(l),
+                  default: l === limit
+                })))
+            )
+          ];
+
+          return await i.editReply({
+            embeds: [generateFilterEmbed(currentConfig, 'mentions')],
+            components
+          });
+        }
+
+        // Handle Limit for Spam
+        if (i.customId === 'am_limit_filter_spam') {
+          const limit = parseInt(i.values[0]);
+          currentConfig.automod.spam.limit = limit;
+          await setGuildConfig(client, interaction.guild.id, currentConfig);
+          await i.deferUpdate();
+          guildConfig = currentConfig;
+
+          const isEnabled = currentConfig.automod.spam.enabled;
+          const currentAction = currentConfig.automod.spam.action;
+          const components = [
+            filterRowButtons('spam', isEnabled),
+            filterRowActionSelect('spam', currentAction),
+            new ActionRowBuilder().addComponents(
+              new StringSelectMenuBuilder()
+                .setCustomId('am_limit_filter_spam')
+                .setPlaceholder('Set spam threshold messages...')
+                .addOptions([3, 5, 7, 10, 15].map(l => ({
+                  label: `${l} messages`,
+                  value: String(l),
+                  default: l === limit
+                })))
+            ),
+            new ActionRowBuilder().addComponents(
+              new StringSelectMenuBuilder()
+                .setCustomId('am_timeframe_filter_spam')
+                .setPlaceholder('Set timeframe limit...')
+                .addOptions([
+                  { label: '2 seconds', value: '2000' },
+                  { label: '3 seconds', value: '3000' },
+                  { label: '5 seconds', value: '5000' },
+                  { label: '10 seconds', value: '10000' }
+                ].map(t => ({
+                  ...t,
+                  default: currentConfig.automod.spam.timeframe === parseInt(t.value)
+                })))
+            )
+          ];
+
+          return await i.editReply({
+            embeds: [generateFilterEmbed(currentConfig, 'spam')],
+            components
+          });
+        }
+
+        // Handle Timeframe for Spam
+        if (i.customId === 'am_timeframe_filter_spam') {
+          const timeframe = parseInt(i.values[0]);
+          currentConfig.automod.spam.timeframe = timeframe;
+          await setGuildConfig(client, interaction.guild.id, currentConfig);
+          await i.deferUpdate();
+          guildConfig = currentConfig;
+
+          const isEnabled = currentConfig.automod.spam.enabled;
+          const currentAction = currentConfig.automod.spam.action;
+          const components = [
+            filterRowButtons('spam', isEnabled),
+            filterRowActionSelect('spam', currentAction),
+            new ActionRowBuilder().addComponents(
+              new StringSelectMenuBuilder()
+                .setCustomId('am_limit_filter_spam')
+                .setPlaceholder('Set spam threshold messages...')
+                .addOptions([3, 5, 7, 10, 15].map(l => ({
+                  label: `${l} messages`,
+                  value: String(l),
+                  default: l === currentConfig.automod.spam.limit
+                })))
+            ),
+            new ActionRowBuilder().addComponents(
+              new StringSelectMenuBuilder()
+                .setCustomId('am_timeframe_filter_spam')
+                .setPlaceholder('Set timeframe limit...')
+                .addOptions([
+                  { label: '2 seconds', value: '2000' },
+                  { label: '3 seconds', value: '3000' },
+                  { label: '5 seconds', value: '5000' },
+                  { label: '10 seconds', value: '10000' }
+                ].map(t => ({
+                  ...t,
+                  default: parseInt(t.value) === timeframe
+                })))
+            )
+          ];
+
+          return await i.editReply({
+            embeds: [generateFilterEmbed(currentConfig, 'spam')],
+            components
+          });
+        }
+
+        // Whitelist Channel Toggle
+        if (i.customId === 'am_whitelist_channel') {
+          const channelId = i.values[0];
+          if (currentConfig.automod.ignoredChannels.includes(channelId)) {
+            currentConfig.automod.ignoredChannels = currentConfig.automod.ignoredChannels.filter(id => id !== channelId);
+          } else {
+            currentConfig.automod.ignoredChannels.push(channelId);
+          }
+          await setGuildConfig(client, interaction.guild.id, currentConfig);
+          await i.deferUpdate();
+          guildConfig = currentConfig;
+
+          return await i.editReply({
+            embeds: [generateWhitelistEmbed(currentConfig)],
+            components: [
+              new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('am_whitelist_channel').setPlaceholder('Toggle whitelisted channel...')),
+              new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('am_whitelist_role').setPlaceholder('Toggle whitelisted role...')),
+              new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('am_back_to_main').setLabel('Back to Main').setStyle(ButtonStyle.Secondary))
+            ]
+          });
+        }
+
+        // Whitelist Role Toggle
+        if (i.customId === 'am_whitelist_role') {
+          const roleId = i.values[0];
+          if (currentConfig.automod.ignoredRoles.includes(roleId)) {
+            currentConfig.automod.ignoredRoles = currentConfig.automod.ignoredRoles.filter(id => id !== roleId);
+          } else {
+            currentConfig.automod.ignoredRoles.push(roleId);
+          }
+          await setGuildConfig(client, interaction.guild.id, currentConfig);
+          await i.deferUpdate();
+          guildConfig = currentConfig;
+
+          return await i.editReply({
+            embeds: [generateWhitelistEmbed(currentConfig)],
+            components: [
+              new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('am_whitelist_channel').setPlaceholder('Toggle whitelisted channel...')),
+              new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('am_whitelist_role').setPlaceholder('Toggle whitelisted role...')),
+              new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('am_back_to_main').setLabel('Back to Main').setStyle(ButtonStyle.Secondary))
+            ]
+          });
+        }
+
+      } catch (err) {
+        logger.error('Collector interaction error in AutoMod panel:', err);
+      }
+    });
+
+    collector.on('end', () => {
+      response.edit({ components: [] }).catch(() => null);
+    });
   }
 };
+
