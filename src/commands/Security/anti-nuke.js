@@ -111,7 +111,7 @@ export default {
       subcmd.setName('panel').setDescription('Open the interactive Anti-Nuke Control Panel')
     ),
 
-  category: 'Moderation',
+  category: 'Security',
 
   async execute(interaction, config, client) {
     const subcommand = interaction.options.getSubcommand();

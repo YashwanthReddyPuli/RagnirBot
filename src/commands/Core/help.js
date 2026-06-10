@@ -24,6 +24,7 @@ const HELP_MENU_TIMEOUT_MS = 5 * 60 * 1000;
 const CATEGORY_ICONS = {
     Core: "ℹ️",
     Moderation: "🛡️",
+    Security: "🚨",
     Economy: "💰",
     Fun: "🎮",
     Leveling: "📊",
@@ -83,6 +84,11 @@ export async function createInitialHelpMenu(client) {
         {
             name: "🛡️ **Moderation**",
             value: "Server moderation, user management, and enforcement tools",
+            inline: true
+        },
+        {
+            name: "🚨 **Security**",
+            value: "Anti-nuke server protection and owner management options",
             inline: true
         },
         {
