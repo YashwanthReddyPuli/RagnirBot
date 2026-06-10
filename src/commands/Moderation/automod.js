@@ -146,6 +146,14 @@ export default {
     )
     .addSubcommand(subcmd =>
       subcmd.setName('panel').setDescription('Open the interactive AutoMod Control Panel')
+    )
+    .addSubcommand(subcmd =>
+      subcmd.setName('logging')
+        .setDescription('Set the channel for AutoMod logs')
+        .addChannelOption(opt =>
+          opt.setName('channel').setDescription('Log channel').setRequired(true)
+            .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+        )
     ),
 
   category: 'Moderation',
@@ -159,13 +167,14 @@ export default {
     if (!guildConfig.automod) {
       guildConfig.automod = {
         enabled: false,
+        logChannelId: null,
         ignoredChannels: [],
         ignoredRoles: [],
-        invite: { enabled: false, action: 'delete' },
-        link: { enabled: false, action: 'delete' },
-        words: { enabled: false, action: 'delete', list: [] },
-        mentions: { enabled: false, limit: 5, action: 'delete' },
-        spam: { enabled: false, limit: 5, timeframe: 5000, action: 'timeout' }
+        invite: { enabled: false, actions: ['delete'] },
+        link: { enabled: false, actions: ['delete'] },
+        words: { enabled: false, actions: ['delete'], list: [] },
+        mentions: { enabled: false, limit: 5, actions: ['delete'] },
+        spam: { enabled: false, limit: 5, timeframe: 5000, actions: ['delete', 'timeout'] }
       };
     }
 
@@ -173,36 +182,43 @@ export default {
       if (subcommand === 'config') {
         const am = guildConfig.automod;
         const status = am.enabled ? '🟢 **Enabled**' : '🔴 **Disabled**';
+        const logChannel = am.logChannelId ? `<#${am.logChannelId}>` : '`Global Log Channel`';
+
+        const getActionsText = (settings) => {
+          const acts = settings.actions || (settings.action ? [settings.action] : []);
+          return acts.length > 0 ? acts.map(a => `\`${a}\``).join(', ') : '`none`';
+        };
 
         const embed = new EmbedBuilder()
           .setTitle('🛡️ AutoMod Configuration Status')
           .setColor('#336699')
           .addFields(
-            { name: 'Global State', value: status, inline: false },
+            { name: 'Global State', value: status, inline: true },
+            { name: 'Logs Channel', value: logChannel, inline: true },
             { 
               name: 'Invite Filter', 
-              value: `State: ${am.invite.enabled ? '🟢' : '🔴'}\nAction: \`${am.invite.action}\``, 
-              inline: true 
+              value: `State: ${am.invite.enabled ? '🟢' : '🔴'}\nActions: ${getActionsText(am.invite)}`, 
+              inline: false 
             },
             { 
               name: 'Links Filter', 
-              value: `State: ${am.link.enabled ? '🟢' : '🔴'}\nAction: \`${am.link.action}\``, 
-              inline: true 
+              value: `State: ${am.link.enabled ? '🟢' : '🔴'}\nActions: ${getActionsText(am.link)}`, 
+              inline: false 
             },
             { 
               name: 'Word Blacklist', 
-              value: `State: ${am.words.enabled ? '🟢' : '🔴'}\nAction: \`${am.words.action}\`\nWords: \`${am.words.list?.length || 0} loaded\``, 
-              inline: true 
+              value: `State: ${am.words.enabled ? '🟢' : '🔴'}\nActions: ${getActionsText(am.words)}\nWords: \`${am.words.list?.length || 0} loaded\``, 
+              inline: false 
             },
             { 
               name: 'Mentions Limit', 
-              value: `State: ${am.mentions.enabled ? '🟢' : '🔴'}\nLimit: \`${am.mentions.limit} pings\`\nAction: \`${am.mentions.action}\``, 
-              inline: true 
+              value: `State: ${am.mentions.enabled ? '🟢' : '🔴'}\nLimit: \`${am.mentions.limit} pings\`\nActions: ${getActionsText(am.mentions)}`, 
+              inline: false 
             },
             { 
               name: 'Anti-Spam Rate', 
-              value: `State: ${am.spam.enabled ? '🟢' : '🔴'}\nThreshold: \`${am.spam.limit} msgs / ${am.spam.timeframe}ms\`\nAction: \`${am.spam.action}\``, 
-              inline: true 
+              value: `State: ${am.spam.enabled ? '🟢' : '🔴'}\nThreshold: \`${am.spam.limit} msgs / ${am.spam.timeframe}ms\`\nActions: ${getActionsText(am.spam)}`, 
+              inline: false 
             }
           )
           .setTimestamp();
@@ -215,6 +231,15 @@ export default {
         );
 
         return await InteractionHelper.universalReply(interaction, { embeds: [embed] });
+      }
+
+      if (subcommand === 'logging') {
+        const channel = interaction.options.getChannel('channel');
+        guildConfig.automod.logChannelId = channel.id;
+        await setGuildConfig(client, guildId, guildConfig);
+        return await InteractionHelper.universalReply(interaction, {
+          embeds: [successEmbed('⚙️ AutoMod Logs Channel Set', `AutoMod alerts will now be logged to ${channel}.`)]
+        });
       }
 
       if (subcommand === 'toggle') {
@@ -384,37 +409,44 @@ export default {
     const generateMainEmbed = (config) => {
       const am = config.automod;
       const status = am.enabled ? '🟢 **Enabled**' : '🔴 **Disabled**';
+      const logChannel = am.logChannelId ? `<#${am.logChannelId}>` : '`Global Log Channel`';
+
+      const getActionsText = (settings) => {
+        const acts = settings.actions || (settings.action ? [settings.action] : []);
+        return acts.length > 0 ? acts.map(a => `\`${a}\``).join(', ') : '`none`';
+      };
 
       return new EmbedBuilder()
         .setTitle('🛡️ AutoMod Control Panel')
         .setDescription('Manage your server auto-moderation filters, rules, action punishments, and whitelists directly below.')
         .setColor('#336699')
         .addFields(
-          { name: 'Global State', value: status, inline: false },
+          { name: 'Global State', value: status, inline: true },
+          { name: 'Logs Channel', value: logChannel, inline: true },
           { 
             name: 'Invite Filter', 
-            value: `State: ${am.invite.enabled ? '🟢' : '🔴'}\nAction: \`${am.invite.action}\``, 
-            inline: true 
+            value: `State: ${am.invite.enabled ? '🟢' : '🔴'}\nActions: ${getActionsText(am.invite)}`, 
+            inline: false 
           },
           { 
             name: 'Links Filter', 
-            value: `State: ${am.link.enabled ? '🟢' : '🔴'}\nAction: \`${am.link.action}\``, 
-            inline: true 
+            value: `State: ${am.link.enabled ? '🟢' : '🔴'}\nActions: ${getActionsText(am.link)}`, 
+            inline: false 
           },
           { 
             name: 'Word Blacklist', 
-            value: `State: ${am.words.enabled ? '🟢' : '🔴'}\nAction: \`${am.words.action}\`\nWords: \`${am.words.list?.length || 0} loaded\``, 
-            inline: true 
+            value: `State: ${am.words.enabled ? '🟢' : '🔴'}\nActions: ${getActionsText(am.words)}\nWords: \`${am.words.list?.length || 0} loaded\``, 
+            inline: false 
           },
           { 
             name: 'Mentions Limit', 
-            value: `State: ${am.mentions.enabled ? '🟢' : '🔴'}\nLimit: \`${am.mentions.limit} pings\`\nAction: \`${am.mentions.action}\``, 
-            inline: true 
+            value: `State: ${am.mentions.enabled ? '🟢' : '🔴'}\nLimit: \`${am.mentions.limit} pings\`\nActions: ${getActionsText(am.mentions)}`, 
+            inline: false 
           },
           { 
             name: 'Anti-Spam Rate', 
-            value: `State: ${am.spam.enabled ? '🟢' : '🔴'}\nThreshold: \`${am.spam.limit} msgs / ${am.spam.timeframe}ms\`\nAction: \`${am.spam.action}\``, 
-            inline: true 
+            value: `State: ${am.spam.enabled ? '🟢' : '🔴'}\nThreshold: \`${am.spam.limit} msgs / ${am.spam.timeframe}ms\`\nActions: ${getActionsText(am.spam)}`, 
+            inline: false 
           }
         )
         .setTimestamp();
@@ -456,12 +488,17 @@ export default {
         spam: 'Anti-Spam Filter'
       };
 
+      const getActionsText = (s) => {
+        const acts = s.actions || (s.action ? [s.action] : []);
+        return acts.length > 0 ? acts.map(a => `\`${a}\``).join(', ') : '`none (log alert only)`';
+      };
+
       const embed = new EmbedBuilder()
         .setTitle(`⚙️ Configure: ${filterTitles[filterName]}`)
         .setColor('#336699')
         .addFields(
           { name: 'Status', value: settings.enabled ? '🟢 **Enabled**' : '🔴 **Disabled**', inline: true },
-          { name: 'Current Punishment', value: `\`${settings.action}\``, inline: true }
+          { name: 'Punishments (Multiple Allowed)', value: getActionsText(settings), inline: true }
         );
 
       if (filterName === 'words') {
@@ -489,16 +526,21 @@ export default {
         .setStyle(ButtonStyle.Secondary)
     );
 
-    const filterRowActionSelect = (filterName, currentAction) => new ActionRowBuilder().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId(`am_action_filter_${filterName}`)
-        .setPlaceholder('Choose punishment action...')
-        .addOptions(ACTIONS_CHOICES.map(choice => ({
-          label: choice.name,
-          value: choice.value,
-          default: choice.value === currentAction
-        })))
-    );
+    const filterRowActionSelect = (filterName, currentActions) => {
+      const acts = currentActions || [];
+      return new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`am_action_filter_${filterName}`)
+          .setPlaceholder('Choose punishment actions (Custom Combo)...')
+          .setMinValues(0)
+          .setMaxValues(3)
+          .addOptions([
+            { label: 'Delete Message', value: 'delete', description: 'Deletes the triggering message', default: acts.includes('delete') },
+            { label: 'Warn User', value: 'warn', description: 'Gives the user an official warning', default: acts.includes('warn') },
+            { label: 'Timeout User (10m)', value: 'timeout', description: 'Mutes the user for 10 minutes', default: acts.includes('timeout') }
+          ])
+      );
+    };
 
     const generateWhitelistEmbed = (config) => {
       const am = config.automod;
@@ -565,10 +607,10 @@ export default {
             });
           } else if (currentFilterView && currentFilterView !== 'whitelist') {
             const isEnabled = currentConfig.automod[currentFilterView].enabled;
-            const currentAction = currentConfig.automod[currentFilterView].action;
+            const currentActions = currentConfig.automod[currentFilterView].actions || (currentConfig.automod[currentFilterView].action ? [currentConfig.automod[currentFilterView].action] : []);
             const components = [
               filterRowButtons(currentFilterView, isEnabled),
-              filterRowActionSelect(currentFilterView, currentAction)
+              filterRowActionSelect(currentFilterView, currentActions)
             ];
             return await i.editReply({
               embeds: [generateFilterEmbed(currentConfig, currentFilterView)],
@@ -609,10 +651,10 @@ export default {
             });
           } else {
             const isEnabled = currentConfig.automod[val].enabled;
-            const currentAction = currentConfig.automod[val].action;
+            const currentActions = currentConfig.automod[val].actions || (currentConfig.automod[val].action ? [currentConfig.automod[val].action] : []);
             const components = [
               filterRowButtons(val, isEnabled),
-              filterRowActionSelect(val, currentAction)
+              filterRowActionSelect(val, currentActions)
             ];
 
             if (val === 'mentions') {
@@ -675,10 +717,10 @@ export default {
           guildConfig = currentConfig;
 
           const isEnabled = currentConfig.automod[filter].enabled;
-          const currentAction = currentConfig.automod[filter].action;
+          const currentActions = currentConfig.automod[filter].actions || (currentConfig.automod[filter].action ? [currentConfig.automod[filter].action] : []);
           const components = [
             filterRowButtons(filter, isEnabled),
-            filterRowActionSelect(filter, currentAction)
+            filterRowActionSelect(filter, currentActions)
           ];
 
           if (filter === 'mentions') {
@@ -729,11 +771,11 @@ export default {
           });
         }
 
-        // Handle Action Change Selects
+        // Handle Action Change Selects (Supports choosing custom combinations)
         if (i.customId.startsWith('am_action_filter_')) {
           const filter = i.customId.replace('am_action_filter_', '');
-          const action = i.values[0];
-          currentConfig.automod[filter].action = action;
+          const selectedActions = i.values; // this is an array of strings
+          currentConfig.automod[filter].actions = selectedActions;
           await setGuildConfig(client, interaction.guild.id, currentConfig);
           await i.deferUpdate();
           guildConfig = currentConfig;
@@ -741,7 +783,7 @@ export default {
           const isEnabled = currentConfig.automod[filter].enabled;
           const components = [
             filterRowButtons(filter, isEnabled),
-            filterRowActionSelect(filter, action)
+            filterRowActionSelect(filter, selectedActions)
           ];
 
           if (filter === 'mentions') {
@@ -801,10 +843,10 @@ export default {
           guildConfig = currentConfig;
 
           const isEnabled = currentConfig.automod.mentions.enabled;
-          const currentAction = currentConfig.automod.mentions.action;
+          const currentActions = currentConfig.automod.mentions.actions || (currentConfig.automod.mentions.action ? [currentConfig.automod.mentions.action] : []);
           const components = [
             filterRowButtons('mentions', isEnabled),
-            filterRowActionSelect('mentions', currentAction),
+            filterRowActionSelect('mentions', currentActions),
             new ActionRowBuilder().addComponents(
               new StringSelectMenuBuilder()
                 .setCustomId('am_limit_filter_mentions')
@@ -832,10 +874,10 @@ export default {
           guildConfig = currentConfig;
 
           const isEnabled = currentConfig.automod.spam.enabled;
-          const currentAction = currentConfig.automod.spam.action;
+          const currentActions = currentConfig.automod.spam.actions || (currentConfig.automod.spam.action ? [currentConfig.automod.spam.action] : []);
           const components = [
             filterRowButtons('spam', isEnabled),
-            filterRowActionSelect('spam', currentAction),
+            filterRowActionSelect('spam', currentActions),
             new ActionRowBuilder().addComponents(
               new StringSelectMenuBuilder()
                 .setCustomId('am_limit_filter_spam')
@@ -877,10 +919,10 @@ export default {
           guildConfig = currentConfig;
 
           const isEnabled = currentConfig.automod.spam.enabled;
-          const currentAction = currentConfig.automod.spam.action;
+          const currentActions = currentConfig.automod.spam.actions || (currentConfig.automod.spam.action ? [currentConfig.automod.spam.action] : []);
           const components = [
             filterRowButtons('spam', isEnabled),
-            filterRowActionSelect('spam', currentAction),
+            filterRowActionSelect('spam', currentActions),
             new ActionRowBuilder().addComponents(
               new StringSelectMenuBuilder()
                 .setCustomId('am_limit_filter_spam')

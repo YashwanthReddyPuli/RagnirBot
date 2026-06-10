@@ -76,13 +76,14 @@ export const DEFAULT_GUILD_CONFIG = {
     },
     automod: {
         enabled: false,
+        logChannelId: null,
         ignoredChannels: [],
         ignoredRoles: [],
-        invite: { enabled: false, action: 'delete' },
-        link: { enabled: false, action: 'delete' },
-        words: { enabled: false, action: 'delete', list: [] },
-        mentions: { enabled: false, limit: 5, action: 'delete' },
-        spam: { enabled: false, limit: 5, timeframe: 5000, action: 'timeout' }
+        invite: { enabled: false, actions: ['delete'] },
+        link: { enabled: false, actions: ['delete'] },
+        words: { enabled: false, actions: ['delete'], list: [] },
+        mentions: { enabled: false, limit: 5, actions: ['delete'] },
+        spam: { enabled: false, limit: 5, timeframe: 5000, actions: ['delete', 'timeout'] }
     }
 };
 

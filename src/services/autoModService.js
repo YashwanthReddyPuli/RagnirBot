@@ -88,7 +88,8 @@ export const AutoModService = {
 
         if (activeTimestamps.length >= spam.limit) {
           spamTracker.delete(trackerKey); // reset tracker to avoid double trigger loops
-          await this.executePunishment(message, spam.action, 'Spamming messages', client);
+          const actions = spam.actions || (spam.action ? [spam.action] : ['delete', 'timeout']);
+          await this.executePunishment(message, actions, 'Spamming messages', client, config);
           return true;
         }
       }
@@ -102,7 +103,8 @@ export const AutoModService = {
                              (content.includes('@here') ? 1 : 0);
 
         if (totalMentions > mentions.limit) {
-          await this.executePunishment(message, mentions.action, `Mass mentions (${totalMentions} pings)`, client);
+          const actions = mentions.actions || (mentions.action ? [mentions.action] : ['delete']);
+          await this.executePunishment(message, actions, `Mass mentions (${totalMentions} pings)`, client, config);
           return true;
         }
       }
@@ -111,7 +113,8 @@ export const AutoModService = {
       if (automod.invite?.enabled) {
         const inviteRegex = /(discord\.(gg|io|me|li)\/.+|discord(app)?\.com\/invite\/.+)/i;
         if (inviteRegex.test(content)) {
-          await this.executePunishment(message, automod.invite.action, 'Posting invite links', client);
+          const actions = automod.invite.actions || (automod.invite.action ? [automod.invite.action] : ['delete']);
+          await this.executePunishment(message, actions, 'Posting invite links', client, config);
           return true;
         }
       }
@@ -120,7 +123,8 @@ export const AutoModService = {
       if (automod.link?.enabled) {
         const urlRegex = /(https?:\/\/[^\s]+)/gi;
         if (urlRegex.test(content)) {
-          await this.executePunishment(message, automod.link.action, 'Posting external links', client);
+          const actions = automod.link.actions || (automod.link.action ? [automod.link.action] : ['delete']);
+          await this.executePunishment(message, actions, 'Posting external links', client, config);
           return true;
         }
       }
@@ -136,7 +140,8 @@ export const AutoModService = {
         });
 
         if (matchedWord) {
-          await this.executePunishment(message, automod.words.action, `Using banned word: ||${matchedWord}||`, client);
+          const actions = automod.words.actions || (automod.words.action ? [automod.words.action] : ['delete']);
+          await this.executePunishment(message, actions, `Using banned word: ||${matchedWord}||`, client, config);
           return true;
         }
       }
@@ -155,20 +160,23 @@ export const AutoModService = {
   /**
    * Enforce moderation punishments on the user.
    */
-  async executePunishment(message, action, reason, client) {
+  async executePunishment(message, actions, reason, client, guildConfig) {
     const { guild, author, member } = message;
-    const logChannelId = guild.client.config?.logChannelId || guild.systemChannelId;
+    const logChannelId = guildConfig.automod?.logChannelId || guildConfig.logChannelId || guild.client.config?.logChannelId || guild.systemChannelId;
 
     try {
+      const actionsExecuted = [];
+
       // 1. Delete Message
-      if (action === 'delete' || action === 'warn' || action === 'timeout') {
+      if (actions.includes('delete')) {
         await message.delete().catch(err => {
           logger.warn(`Failed to delete AutoMod message:`, err.message);
         });
+        actionsExecuted.push('DELETE');
       }
 
       // 2. Warn User
-      if (action === 'warn') {
+      if (actions.includes('warn')) {
         const result = await WarningService.addWarning({
           guildId: guild.id,
           userId: author.id,
@@ -180,11 +188,12 @@ export const AutoModService = {
           await message.channel.send({
             content: `⚠️ ${author}, you have been warned for **${reason}**. (Total warnings: ${result.totalCount})`
           }).then(msg => setTimeout(() => msg.delete().catch(() => {}), 5000));
+          actionsExecuted.push(`WARN (${result.totalCount} warnings)`);
         }
       }
 
       // 3. Timeout User
-      if (action === 'timeout') {
+      if (actions.includes('timeout')) {
         const botMember = await guild.members.fetch(client.user.id).catch(() => null);
         if (botMember && member && member.moderatable && botMember.roles.highest.position > member.roles.highest.position) {
           const tenMinutesMs = 10 * 60 * 1000;
@@ -199,19 +208,21 @@ export const AutoModService = {
           await message.channel.send({
             content: `🔇 ${author} has been timed out for 10 minutes due to: **${reason}**.`
           }).then(msg => setTimeout(() => msg.delete().catch(() => {}), 10000));
+          actionsExecuted.push('TIMEOUT (10m)');
         } else {
           // Fallback to warn if bot hierarchy prevents timeout
-          await WarningService.addWarning({
+          const result = await WarningService.addWarning({
             guildId: guild.id,
             userId: author.id,
             moderatorId: client.user.id,
             reason: `[AutoMod Retry] ${reason}`
           });
+          actionsExecuted.push(`WARN (Hierarchy fallback - total warnings: ${result.totalCount})`);
         }
       }
 
-      // 4. Log Alert to Log Channel
-      if (action !== 'none' && logChannelId) {
+      // 4. Log Alert to Log Channel (always log violations, even if no punishment is executed)
+      if (logChannelId) {
         const logChannel = guild.channels.cache.get(logChannelId);
         if (logChannel) {
           const embed = new EmbedBuilder()
@@ -221,7 +232,7 @@ export const AutoModService = {
             .addFields(
               { name: 'User', value: `${author} (\`${author.id}\`)`, inline: true },
               { name: 'Violation', value: `\`${reason}\``, inline: true },
-              { name: 'Action Taken', value: `\`${action.toUpperCase()}\``, inline: true },
+              { name: 'Actions Executed', value: `\`${actionsExecuted.join(', ') || 'NONE'}\``, inline: true },
               { name: 'Message Content snippet', value: `\`\`\`\n${(message.content || '').substring(0, 1000)}\n\`\`\`` }
             )
             .setTimestamp();

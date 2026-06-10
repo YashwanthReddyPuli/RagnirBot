@@ -61,32 +61,33 @@ const AntiNukeConfigSchema = z.object({
 
 const AutoModConfigSchema = z.object({
   enabled: z.boolean().default(false),
+  logChannelId: z.string().nullable().optional(),
   ignoredChannels: z.array(z.string()).default([]),
   ignoredRoles: z.array(z.string()).default([]),
   invite: z.object({
     enabled: z.boolean().default(false),
-    action: z.enum(['delete', 'warn', 'timeout', 'none']).default('delete')
-  }).default({ enabled: false, action: 'delete' }),
+    actions: z.array(z.enum(['delete', 'warn', 'timeout'])).default(['delete'])
+  }).default({ enabled: false, actions: ['delete'] }),
   link: z.object({
     enabled: z.boolean().default(false),
-    action: z.enum(['delete', 'warn', 'timeout', 'none']).default('delete')
-  }).default({ enabled: false, action: 'delete' }),
+    actions: z.array(z.enum(['delete', 'warn', 'timeout'])).default(['delete'])
+  }).default({ enabled: false, actions: ['delete'] }),
   words: z.object({
     enabled: z.boolean().default(false),
-    action: z.enum(['delete', 'warn', 'timeout', 'none']).default('delete'),
+    actions: z.array(z.enum(['delete', 'warn', 'timeout'])).default(['delete']),
     list: z.array(z.string()).default([])
-  }).default({ enabled: false, action: 'delete', list: [] }),
+  }).default({ enabled: false, actions: ['delete'], list: [] }),
   mentions: z.object({
     enabled: z.boolean().default(false),
     limit: z.number().int().min(1).default(5),
-    action: z.enum(['delete', 'warn', 'timeout', 'none']).default('delete')
-  }).default({ enabled: false, limit: 5, action: 'delete' }),
+    actions: z.array(z.enum(['delete', 'warn', 'timeout'])).default(['delete'])
+  }).default({ enabled: false, limit: 5, actions: ['delete'] }),
   spam: z.object({
     enabled: z.boolean().default(false),
     limit: z.number().int().min(1).default(5),
     timeframe: z.number().int().min(1000).default(5000),
-    action: z.enum(['delete', 'warn', 'timeout', 'none']).default('timeout')
-  }).default({ enabled: false, limit: 5, timeframe: 5000, action: 'timeout' })
+    actions: z.array(z.enum(['delete', 'warn', 'timeout'])).default(['delete', 'timeout'])
+  }).default({ enabled: false, limit: 5, timeframe: 5000, actions: ['delete', 'timeout'] })
 }).optional();
 
 export const GuildConfigSchema = z
