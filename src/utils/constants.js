@@ -73,6 +73,16 @@ export const DEFAULT_GUILD_CONFIG = {
             emojiDelete: { limit: 5, timeframe: 15000, action: 'demote' },
             emojiUpdate: { limit: 5, timeframe: 15000, action: 'demote' }
         }
+    },
+    automod: {
+        enabled: false,
+        ignoredChannels: [],
+        ignoredRoles: [],
+        invite: { enabled: false, action: 'delete' },
+        link: { enabled: false, action: 'delete' },
+        words: { enabled: false, action: 'delete', list: [] },
+        mentions: { enabled: false, limit: 5, action: 'delete' },
+        spam: { enabled: false, limit: 5, timeframe: 5000, action: 'timeout' }
     }
 };
 

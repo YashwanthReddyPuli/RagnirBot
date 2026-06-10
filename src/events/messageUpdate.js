@@ -1,6 +1,7 @@
 import { Events } from 'discord.js';
 import { logEvent, EVENT_TYPES } from '../services/loggingService.js';
 import { logger } from '../utils/logger.js';
+import { AutoModService } from '../services/autoModService.js';
 
 const MAX_LOGGED_EDIT_CONTENT_LENGTH = 512;
 
@@ -12,7 +13,9 @@ export default {
     try {
       if (!newMessage.guild || newMessage.author?.bot) return;
 
-      
+      const isAutomodded = await AutoModService.processMessage(newMessage, newMessage.client);
+      if (isAutomodded) return;
+
       if (oldMessage.content === newMessage.content) return;
 
       const fields = [];

@@ -59,6 +59,36 @@ const AntiNukeConfigSchema = z.object({
   settings: z.record(AntiNukeSettingSchema).optional()
 }).optional();
 
+const AutoModConfigSchema = z.object({
+  enabled: z.boolean().default(false),
+  ignoredChannels: z.array(z.string()).default([]),
+  ignoredRoles: z.array(z.string()).default([]),
+  invite: z.object({
+    enabled: z.boolean().default(false),
+    action: z.enum(['delete', 'warn', 'timeout', 'none']).default('delete')
+  }).default({ enabled: false, action: 'delete' }),
+  link: z.object({
+    enabled: z.boolean().default(false),
+    action: z.enum(['delete', 'warn', 'timeout', 'none']).default('delete')
+  }).default({ enabled: false, action: 'delete' }),
+  words: z.object({
+    enabled: z.boolean().default(false),
+    action: z.enum(['delete', 'warn', 'timeout', 'none']).default('delete'),
+    list: z.array(z.string()).default([])
+  }).default({ enabled: false, action: 'delete', list: [] }),
+  mentions: z.object({
+    enabled: z.boolean().default(false),
+    limit: z.number().int().min(1).default(5),
+    action: z.enum(['delete', 'warn', 'timeout', 'none']).default('delete')
+  }).default({ enabled: false, limit: 5, action: 'delete' }),
+  spam: z.object({
+    enabled: z.boolean().default(false),
+    limit: z.number().int().min(1).default(5),
+    timeframe: z.number().int().min(1000).default(5000),
+    action: z.enum(['delete', 'warn', 'timeout', 'none']).default('timeout')
+  }).default({ enabled: false, limit: 5, timeframe: 5000, action: 'timeout' })
+}).optional();
+
 export const GuildConfigSchema = z
   .object({
     prefix: z.string().optional(),
@@ -78,7 +108,8 @@ export const GuildConfigSchema = z
     ticketLogging: TicketLoggingSchema.optional(),
     enableLogging: z.boolean().optional(),
     verification: VerificationConfigSchema,
-    antinuke: AntiNukeConfigSchema
+    antinuke: AntiNukeConfigSchema,
+    automod: AutoModConfigSchema
   })
   .passthrough();
 

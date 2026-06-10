@@ -208,7 +208,7 @@ export const AntiNukeService = {
             { name: 'Punishment Result', value: `\`${punishmentApplied}\``, inline: true }
           )
           .setTimestamp();
-        
+
         await channel.send({ embeds: [embed] }).catch(err => {
           logger.warn(`Failed to send anti-nuke alert log:`, err.message);
         });
