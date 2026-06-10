@@ -7,10 +7,42 @@ import {
 } from '../utils/database.js';
 import { getServerCounters, saveServerCounters } from '../services/serverstatsService.js';
 import { logger } from '../utils/logger.js';
+import { AntiNukeService } from '../services/antiNukeService.js';
+import { AuditLogEvent } from 'discord.js';
 
 export default {
     name: 'channelDelete',
     async execute(channel, client) {
+        // Anti-nuke check
+        if (channel.guild) {
+            const executor = await AntiNukeService.resolveExecutor(channel.guild, AuditLogEvent.ChannelDelete, channel.id);
+            if (executor) {
+                const triggered = await AntiNukeService.checkAction(channel.guild, executor, 'channelDelete');
+                if (triggered) {
+                    try {
+                        await channel.guild.channels.create({
+                            name: channel.name,
+                            type: channel.type,
+                            topic: channel.topic,
+                            nsfw: channel.nsfw,
+                            parent: channel.parentId,
+                            permissionOverwrites: channel.permissionOverwrites.cache.map(p => ({
+                                id: p.id,
+                                allow: p.allow.toArray(),
+                                deny: p.deny.toArray(),
+                                type: p.type
+                            })),
+                            rateLimitPerUser: channel.rateLimitPerUser,
+                            position: channel.position
+                        });
+                        logger.info(`Recreated deleted channel ${channel.name} due to anti-nuke rollback`);
+                    } catch (err) {
+                        logger.error(`Failed to recreate channel ${channel.name}:`, err);
+                    }
+                }
+            }
+        }
+
         // Handle ticket text channel deletion
         if (channel.type === 0 && channel.guild) {
             try {

@@ -1,4 +1,4 @@
-import { Events, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import { Events, EmbedBuilder, PermissionFlagsBits, AuditLogEvent } from 'discord.js';
 import { getColor } from '../config/bot.js';
 import { getGuildConfig } from '../services/guildConfig.js';
 import { getWelcomeConfig } from '../utils/database.js';
@@ -7,6 +7,7 @@ import { logEvent, EVENT_TYPES } from '../services/loggingService.js';
 import { getServerCounters, updateCounter } from '../services/serverstatsService.js';
 import { setBirthday as dbSetBirthday } from '../utils/database.js';
 import { logger } from '../utils/logger.js';
+import { AntiNukeService } from '../services/antiNukeService.js';
 
 export default {
   name: Events.GuildMemberAdd,
@@ -15,6 +16,20 @@ export default {
   async execute(member) {
     try {
         const { guild, user } = member;
+
+        // Anti-bot check
+        if (user.bot && guild) {
+            const executor = await AntiNukeService.resolveExecutor(guild, AuditLogEvent.BotAdd, user.id);
+            if (executor) {
+                const triggered = await AntiNukeService.checkAction(guild, executor, 'botAdd');
+                if (triggered) {
+                    await member.ban({ reason: '[Anti-Nuke Rollback] Unauthorized bot invite' }).catch(err => {
+                        logger.error(`Failed to ban rogue bot ${user.tag} during rollback:`, err);
+                    });
+                    return;
+                }
+            }
+        }
         
         const config = await getGuildConfig(member.client, guild.id);
         

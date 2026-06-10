@@ -50,6 +50,28 @@ export const DEFAULT_GUILD_CONFIG = {
     },
     verification: {
         enabled: false
+    },
+    antinuke: {
+        enabled: false,
+        logChannelId: null,
+        whitelistedUsers: {},
+        whitelistedRoles: {},
+        settings: {
+            roleCreate: { limit: 3, timeframe: 15000, action: 'demote' },
+            roleUpdate: { limit: 3, timeframe: 15000, action: 'demote' },
+            roleDelete: { limit: 3, timeframe: 15000, action: 'demote' },
+            channelCreate: { limit: 3, timeframe: 15000, action: 'demote' },
+            channelUpdate: { limit: 3, timeframe: 15000, action: 'demote' },
+            channelDelete: { limit: 3, timeframe: 15000, action: 'demote' },
+            ban: { limit: 3, timeframe: 15000, action: 'ban' },
+            kick: { limit: 3, timeframe: 15000, action: 'ban' },
+            webhook: { limit: 1, timeframe: 10000, action: 'ban' },
+            botAdd: { limit: 1, timeframe: 10000, action: 'ban' },
+            serverUpdate: { limit: 1, timeframe: 10000, action: 'ban' },
+            emojiCreate: { limit: 5, timeframe: 15000, action: 'demote' },
+            emojiDelete: { limit: 5, timeframe: 15000, action: 'demote' },
+            emojiUpdate: { limit: 5, timeframe: 15000, action: 'demote' }
+        }
     }
 };
 

@@ -44,6 +44,20 @@ const VerificationConfigSchema = z
   })
   .optional();
 
+const AntiNukeSettingSchema = z.object({
+  limit: z.number().int().min(1).default(3),
+  timeframe: z.number().int().min(1000).default(15000),
+  action: z.enum(['ban', 'kick', 'demote', 'none']).default('demote')
+});
+
+const AntiNukeConfigSchema = z.object({
+  enabled: z.boolean().default(false),
+  logChannelId: z.string().nullable().optional(),
+  whitelistedUsers: z.record(z.union([z.boolean(), z.array(z.string())])).default({}),
+  whitelistedRoles: z.record(z.union([z.boolean(), z.array(z.string())])).default({}),
+  settings: z.record(AntiNukeSettingSchema).optional()
+}).optional();
+
 export const GuildConfigSchema = z
   .object({
     prefix: z.string().optional(),
@@ -62,7 +76,8 @@ export const GuildConfigSchema = z
     logging: LoggingConfigSchema.optional(),
     ticketLogging: TicketLoggingSchema.optional(),
     enableLogging: z.boolean().optional(),
-    verification: VerificationConfigSchema
+    verification: VerificationConfigSchema,
+    antinuke: AntiNukeConfigSchema
   })
   .passthrough();
 

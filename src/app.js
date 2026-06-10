@@ -1,4 +1,4 @@
-﻿import 'dotenv/config';
+import 'dotenv/config';
 import { Client, Collection, GatewayIntentBits } from 'discord.js';
 import { REST } from '@discordjs/rest';
 import express from 'express';
@@ -20,16 +20,13 @@ class TitanBot extends Client {
         
         GatewayIntentBits.Guilds,                        
         GatewayIntentBits.GuildMembers,                 
-        
-        
         GatewayIntentBits.GuildMessages,                
         GatewayIntentBits.GuildMessageReactions,        
         GatewayIntentBits.MessageContent,               
-        
         GatewayIntentBits.GuildVoiceStates,             
-        
-        
         GatewayIntentBits.GuildBans,                    
+        GatewayIntentBits.GuildWebhooks,
+        GatewayIntentBits.GuildEmojisAndStickers,
       ],
     });
 
