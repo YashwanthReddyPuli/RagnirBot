@@ -251,7 +251,23 @@ function isLoggingEnabled(config, eventType) {
 
 function getLogChannelForEvent(config, eventType) {
   const logging = config.logging || {};
-  
+  const [category] = eventType.split('.');
+
+  if (category === 'moderation' && config.modLogChannelId) {
+    return config.modLogChannelId;
+  }
+  if (category === 'ticket' && config.ticketLogsChannelId) {
+    return config.ticketLogsChannelId;
+  }
+  if (category === 'message' && config.messageLogChannelId) {
+    return config.messageLogChannelId;
+  }
+  if (category === 'member' && config.memberLogChannelId) {
+    return config.memberLogChannelId;
+  }
+  if (category === 'leveling' && config.levelingLogChannelId) {
+    return config.levelingLogChannelId;
+  }
   
   if (logging.channelId) {
     return logging.channelId;

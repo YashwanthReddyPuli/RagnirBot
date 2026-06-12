@@ -20,6 +20,11 @@ export default {
         )
         .addSubcommand((subcommand) =>
             subcommand
+                .setName('setup')
+                .setDescription('Automatically create a dedicated logs category and channels for logging.'),
+        )
+        .addSubcommand((subcommand) =>
+            subcommand
                 .setName('setchannel')
                 .setDescription('Set the audit log channel for this server.')
                 .addChannelOption((option) =>
@@ -92,6 +97,74 @@ export default {
 
             if (subcommand === 'dashboard') {
                 return await dashboard.execute(interaction, config, client);
+            }
+
+            if (subcommand === 'setup') {
+                await InteractionHelper.safeDefer(interaction);
+                const guild = interaction.guild;
+                const me = guild.members.me;
+
+                // Check permissions
+                if (!me.permissions.has(PermissionFlagsBits.ManageChannels)) {
+                    return await InteractionHelper.safeEditReply(interaction, {
+                        embeds: [errorEmbed('Permission Error', 'I need the **Manage Channels** permission to automatically set up log channels.')]
+                    });
+                }
+
+                // 1. Create or Find category
+                let category = guild.channels.cache.find(c => c.name.toLowerCase() === 'ragnir logs' && c.type === ChannelType.GuildCategory);
+                if (!category) {
+                    category = await guild.channels.create({
+                        name: 'Ragnir Logs',
+                        type: ChannelType.GuildCategory,
+                        reason: 'Auto log setup category'
+                    });
+                }
+
+                // Channels definition mapping configuration properties
+                const logChannels = [
+                    { name: 'general-logs', key: 'logChannelId' },
+                    { name: 'moderation-logs', key: 'modLogChannelId' },
+                    { name: 'ticket-logs', key: 'ticketLogsChannelId' },
+                    { name: 'message-logs', key: 'messageLogChannelId' },
+                    { name: 'member-logs', key: 'memberLogChannelId' },
+                    { name: 'leveling-logs', key: 'levelingLogChannelId' }
+                ];
+
+                const createdChannels = [];
+                const { getGuildConfig, setGuildConfig } = await import('../../services/guildConfig.js');
+                const guildConfig = await getGuildConfig(client, guild.id);
+
+                for (const chanDef of logChannels) {
+                    let channel = guild.channels.cache.find(c => c.name === chanDef.name && c.parentId === category.id && c.type === ChannelType.GuildText);
+                    if (!channel) {
+                        channel = await guild.channels.create({
+                            name: chanDef.name,
+                            type: ChannelType.GuildText,
+                            parent: category.id,
+                            reason: 'Auto setup log channel'
+                        });
+                    }
+                    guildConfig[chanDef.key] = channel.id;
+                    createdChannels.push(`${chanDef.name}: ${channel}`);
+                }
+
+                // Enable global logging config too
+                guildConfig.enableLogging = true;
+                guildConfig.logging = {
+                    ...(guildConfig.logging || {}),
+                    enabled: true,
+                    channelId: guildConfig.logChannelId
+                };
+
+                await setGuildConfig(client, guild.id, guildConfig);
+
+                const embed = successEmbed(
+                    'Setup Completed ✅',
+                    `Successfully created logging category **Ragnir Logs** and channels:\n\n${createdChannels.join('\n')}\n\nAll events will now be routed to their respective log channels.`
+                );
+
+                return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
             }
 
             await InteractionHelper.safeDefer(interaction);

@@ -49,10 +49,9 @@ export async function addXp(client, guild, member, xpToAdd) {
 
         logger.info(`🎉 ${member.user.tag} leveled up to level ${levelData.level} in ${guild.name}`);
 
-        // Award role rewards for each level if applicable
-        if (config.roleRewards && config.roleRewards[levelData.level]) {
-          await awardRoleReward(guild, member, config.roleRewards[levelData.level], levelData.level);
-        }
+        // Award role rewards (explicit configuration or auto role levels)
+        const rewardRoleId = config.roleRewards ? config.roleRewards[levelData.level] : null;
+        await awardRoleReward(guild, member, rewardRoleId, levelData.level);
       }
 
       if (didLevelUp) {
@@ -128,15 +127,25 @@ export async function addXp(client, guild, member, xpToAdd) {
 
 async function awardRoleReward(guild, member, roleId, level) {
   try {
-    const role = guild.roles.cache.get(roleId);
+    let role = null;
+    if (roleId) {
+      role = guild.roles.cache.get(roleId);
+    }
     
+    // Auto-resolve role if not explicitly configured in config.roleRewards
+    const autoLevels = [1, 5, 10, 25, 50];
+    if (!role && autoLevels.includes(level)) {
+      role = guild.roles.cache.find(r => r.name.toLowerCase() === `level ${level}`);
+    }
+
     if (!role) {
-      logger.warn(`Role ${roleId} not found for level ${level} reward in guild ${guild.id}`);
+      if (roleId) {
+        logger.warn(`Role ${roleId} not found for level ${level} reward in guild ${guild.id}`);
+      }
       return;
     }
 
-    
-    if (member.roles.cache.has(roleId)) {
+    if (member.roles.cache.has(role.id)) {
       return;
     }
 
