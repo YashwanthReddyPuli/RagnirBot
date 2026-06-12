@@ -902,8 +902,8 @@ export async function deleteTicket(channel, deleter) {
                   channelId: channel.id,
                   transcriptChannelId: guildConfig.ticketTranscriptChannelId
                 });
-              } else if (!transcriptChannel.isSendable()) {
-                logger.error('Transcript channel exists but is not sendable', {
+              } else if (!transcriptChannel.isTextBased() || !transcriptChannel.permissionsFor(channel.guild.members.me)?.has(['SendMessages', 'EmbedLinks', 'AttachFiles'])) {
+                logger.error('Transcript channel exists but is not text-based or bot lacks SendMessages/EmbedLinks/AttachFiles permissions', {
                   channelId: channel.id,
                   transcriptChannelId: transcriptChannel.id
                 });

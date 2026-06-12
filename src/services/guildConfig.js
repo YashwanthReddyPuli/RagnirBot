@@ -17,7 +17,13 @@ const GUILD_CONFIG_DEFAULTS = {
         enabled: false,
         channelId: null,
         enabledEvents: {}
-    }
+    },
+    modLogChannelId: null,
+    ticketLogsChannelId: null,
+    ticketTranscriptChannelId: null,
+    messageLogChannelId: null,
+    memberLogChannelId: null,
+    levelingLogChannelId: null
 };
 
 

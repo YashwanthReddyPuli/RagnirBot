@@ -6,12 +6,13 @@ import {
     saveTicketData
 } from '../utils/database.js';
 import { getServerCounters, saveServerCounters } from '../services/serverstatsService.js';
+import { logEvent, EVENT_TYPES } from '../services/loggingService.js';
 import { logger } from '../utils/logger.js';
 import { AntiNukeService } from '../services/antiNukeService.js';
-import { AuditLogEvent } from 'discord.js';
+import { AuditLogEvent, Events } from 'discord.js';
 
 export default {
-    name: 'channelDelete',
+    name: Events.ChannelDelete,
     async execute(channel, client) {
         // Anti-nuke check
         if (channel.guild) {
@@ -39,8 +40,33 @@ export default {
                     } catch (err) {
                         logger.error(`Failed to recreate channel ${channel.name}:`, err);
                     }
+                    return;
                 }
             }
+
+            const channelTypeNames = {
+                0: 'Text Channel',
+                2: 'Voice Channel',
+                4: 'Category',
+                5: 'Announcement Channel',
+                13: 'Stage Channel'
+            };
+
+            await logEvent({
+                client: channel.client,
+                guildId: channel.guild.id,
+                eventType: 'message.delete', // Route to message log channel
+                data: {
+                    title: '🗑️ Channel Deleted',
+                    description: `A channel was deleted: **${channel.name}**`,
+                    fields: [
+                        { name: 'Channel Name', value: channel.name, inline: true },
+                        { name: 'Channel Type', value: channelTypeNames[channel.type] || 'Unknown', inline: true },
+                        { name: 'Category Parent', value: channel.parent ? channel.parent.name : 'None', inline: true },
+                        { name: 'Channel ID', value: channel.id, inline: true }
+                    ]
+                }
+            });
         }
 
         // Handle ticket text channel deletion

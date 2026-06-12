@@ -140,6 +140,12 @@ export const GuildConfigSchema = z
     logging: LoggingConfigSchema.optional(),
     ticketLogging: TicketLoggingSchema.optional(),
     enableLogging: z.boolean().optional(),
+    modLogChannelId: z.string().nullable().optional(),
+    ticketLogsChannelId: z.string().nullable().optional(),
+    ticketTranscriptChannelId: z.string().nullable().optional(),
+    messageLogChannelId: z.string().nullable().optional(),
+    memberLogChannelId: z.string().nullable().optional(),
+    levelingLogChannelId: z.string().nullable().optional(),
     verification: VerificationConfigSchema,
     antinuke: AntiNukeConfigSchema,
     automod: AutoModConfigSchema
