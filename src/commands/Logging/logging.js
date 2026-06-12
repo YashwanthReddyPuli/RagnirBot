@@ -206,8 +206,8 @@ export default {
                 await setGuildConfig(client, guild.id, guildConfig);
 
                 const embed = successEmbed(
-                    'Setup Completed ✅',
-                    `Successfully created logging category **Ragnir Logs** and fresh channels:\n\n${createdChannels.join('\n')}\n\nAll events will now be routed to their respective log channels.`
+                    `Successfully created logging category **Ragnir Logs** and fresh channels:\n\n${createdChannels.join('\n')}\n\nAll events will now be routed to their respective log channels.`,
+                    'Setup Completed ✅'
                 );
 
                 return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
