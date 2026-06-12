@@ -31,7 +31,7 @@ export async function logEvent({ client, guild, guildId, event }) {
     }
     const config = await getGuildConfig(client, guild.id);
     const loggingDisabled = config?.logging?.enabled === false || config?.enableLogging === false;
-    const logChannelId = config?.logging?.channelId || config?.logChannelId;
+    const logChannelId = config?.modLogChannelId || config?.logging?.channelId || config?.logChannelId;
     if (!logChannelId || loggingDisabled) {
       logger.debug(`Logging disabled or no log channel configured for guild ${guild.id}`);
       return;

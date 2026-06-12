@@ -126,6 +126,7 @@ export default {
                     { name: 'general-logs', key: 'logChannelId' },
                     { name: 'moderation-logs', key: 'modLogChannelId' },
                     { name: 'ticket-logs', key: 'ticketLogsChannelId' },
+                    { name: 'ticket-transcripts', key: 'ticketTranscriptChannelId' },
                     { name: 'message-logs', key: 'messageLogChannelId' },
                     { name: 'member-logs', key: 'memberLogChannelId' },
                     { name: 'leveling-logs', key: 'levelingLogChannelId' }
