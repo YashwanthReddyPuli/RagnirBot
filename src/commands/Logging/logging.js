@@ -25,6 +25,11 @@ export default {
         )
         .addSubcommand((subcommand) =>
             subcommand
+                .setName('clear')
+                .setDescription('Delete the Ragnir Logs category and all created logging channels.'),
+        )
+        .addSubcommand((subcommand) =>
+            subcommand
                 .setName('setchannel')
                 .setDescription('Set the audit log channel for this server.')
                 .addChannelOption((option) =>
@@ -99,7 +104,7 @@ export default {
                 return await dashboard.execute(interaction, config, client);
             }
 
-            if (subcommand === 'setup') {
+            if (subcommand === 'setup' || subcommand === 'clear') {
                 await InteractionHelper.safeDefer(interaction);
                 const guild = interaction.guild;
                 const me = guild.members.me;
@@ -107,19 +112,64 @@ export default {
                 // Check permissions
                 if (!me.permissions.has(PermissionFlagsBits.ManageChannels)) {
                     return await InteractionHelper.safeEditReply(interaction, {
-                        embeds: [errorEmbed('Permission Error', 'I need the **Manage Channels** permission to automatically set up log channels.')]
+                        embeds: [errorEmbed('Permission Error', 'I need the **Manage Channels** permission to manage log channels.')]
                     });
                 }
 
-                // 1. Create or Find category
-                let category = guild.channels.cache.find(c => c.name.toLowerCase() === 'ragnir logs' && c.type === ChannelType.GuildCategory);
-                if (!category) {
-                    category = await guild.channels.create({
-                        name: 'Ragnir Logs',
-                        type: ChannelType.GuildCategory,
-                        reason: 'Auto log setup category'
+                const { getGuildConfig, setGuildConfig } = await import('../../services/guildConfig.js');
+                const guildConfig = await getGuildConfig(client, guild.id);
+
+                // Find and delete old Ragnir Logs categories & their child channels
+                const categories = guild.channels.cache.filter(c => c.name.toLowerCase() === 'ragnir logs' && c.type === ChannelType.GuildCategory);
+                for (const [, cat] of categories) {
+                    const children = guild.channels.cache.filter(c => c.parentId === cat.id);
+                    for (const [, child] of children) {
+                        await child.delete('Resetting logging setup').catch(err => {
+                            logger.error(`Failed to delete old log channel ${child.name}:`, err);
+                        });
+                    }
+                    await cat.delete('Resetting logging setup').catch(err => {
+                        logger.error(`Failed to delete old log category ${cat.name}:`, err);
                     });
                 }
+
+                // Unset all log configuration fields in guild config
+                const logKeys = [
+                    'logChannelId',
+                    'modLogChannelId',
+                    'ticketLogsChannelId',
+                    'ticketTranscriptChannelId',
+                    'messageLogChannelId',
+                    'memberLogChannelId',
+                    'levelingLogChannelId'
+                ];
+                for (const key of logKeys) {
+                    guildConfig[key] = null;
+                }
+
+                if (subcommand === 'clear') {
+                    // Disable global logging config
+                    guildConfig.enableLogging = false;
+                    if (guildConfig.logging) {
+                        guildConfig.logging.enabled = false;
+                        guildConfig.logging.channelId = null;
+                    }
+
+                    await setGuildConfig(client, guild.id, guildConfig);
+
+                    const embed = successEmbed(
+                        'Logging Cleared 🧹',
+                        'Successfully deleted the **Ragnir Logs** category, all logging channels, and reset your guild logging configurations.'
+                    );
+                    return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+                }
+
+                // Setup phase: 1. Create fresh category
+                const category = await guild.channels.create({
+                    name: 'Ragnir Logs',
+                    type: ChannelType.GuildCategory,
+                    reason: 'Auto log setup category'
+                });
 
                 // Channels definition mapping configuration properties
                 const logChannels = [
@@ -133,19 +183,14 @@ export default {
                 ];
 
                 const createdChannels = [];
-                const { getGuildConfig, setGuildConfig } = await import('../../services/guildConfig.js');
-                const guildConfig = await getGuildConfig(client, guild.id);
 
                 for (const chanDef of logChannels) {
-                    let channel = guild.channels.cache.find(c => c.name === chanDef.name && c.parentId === category.id && c.type === ChannelType.GuildText);
-                    if (!channel) {
-                        channel = await guild.channels.create({
-                            name: chanDef.name,
-                            type: ChannelType.GuildText,
-                            parent: category.id,
-                            reason: 'Auto setup log channel'
-                        });
-                    }
+                    const channel = await guild.channels.create({
+                        name: chanDef.name,
+                        type: ChannelType.GuildText,
+                        parent: category.id,
+                        reason: 'Auto setup log channel'
+                    });
                     guildConfig[chanDef.key] = channel.id;
                     createdChannels.push(`${chanDef.name}: ${channel}`);
                 }
@@ -162,7 +207,7 @@ export default {
 
                 const embed = successEmbed(
                     'Setup Completed ✅',
-                    `Successfully created logging category **Ragnir Logs** and channels:\n\n${createdChannels.join('\n')}\n\nAll events will now be routed to their respective log channels.`
+                    `Successfully created logging category **Ragnir Logs** and fresh channels:\n\n${createdChannels.join('\n')}\n\nAll events will now be routed to their respective log channels.`
                 );
 
                 return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
