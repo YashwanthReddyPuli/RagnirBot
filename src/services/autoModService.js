@@ -53,12 +53,12 @@ export const AutoModService = {
         return false;
       }
 
-      // Bypass: Ignored channels
+      // Bypass: Ignored channels (Global)
       if (automod.ignoredChannels?.includes(channelId)) {
         return false;
       }
 
-      // Bypass: Ignored roles and security bypass role
+      // Bypass: Ignored roles (Global) and security bypass role
       const member = await message.guild.members.fetch(authorId).catch(() => null);
       if (member) {
         if (member.roles.cache.some(r => r.name.toLowerCase() === 'security bypass')) {
@@ -69,11 +69,36 @@ export const AutoModService = {
         }
       }
 
+      // Helper to check per-filter bypass
+      const isFilterBypassed = (filterSettings) => {
+        if (!filterSettings) return false;
+        if (filterSettings.ignoredChannels?.includes(channelId)) {
+          return true;
+        }
+        if (member && filterSettings.ignoredRoles?.some(roleId => member.roles.cache.has(roleId))) {
+          return true;
+        }
+        return false;
+      };
+
+      // Helper to increment stats
+      const incrementStat = async (filterName) => {
+        try {
+          const statsKey = `moderation:automod_stats:${message.guild.id}`;
+          const currentStats = await import('../utils/database.js').then(db => db.getFromDb(statsKey, {}));
+          currentStats.total = (currentStats.total || 0) + 1;
+          currentStats[filterName] = (currentStats[filterName] || 0) + 1;
+          await import('../utils/database.js').then(db => db.setInDb(statsKey, currentStats));
+        } catch (err) {
+          logger.error('Error incrementing AutoMod stats:', err);
+        }
+      };
+
       // 3. Filter Checks
       const content = message.content || '';
 
       // --- Filter 1: Anti-Spam ---
-      if (automod.spam?.enabled) {
+      if (automod.spam?.enabled && !isFilterBypassed(automod.spam)) {
         const spam = automod.spam;
         const trackerKey = `${message.guild.id}:${authorId}`;
         const now = Date.now();
@@ -90,13 +115,14 @@ export const AutoModService = {
         if (activeTimestamps.length >= spam.limit) {
           spamTracker.delete(trackerKey); // reset tracker to avoid double trigger loops
           const actions = spam.actions || (spam.action ? [spam.action] : ['delete', 'timeout']);
+          await incrementStat('spam');
           await this.executePunishment(message, actions, 'Spamming messages', client, config);
           return true;
         }
       }
 
       // --- Filter 2: Mass Mentions ---
-      if (automod.mentions?.enabled) {
+      if (automod.mentions?.enabled && !isFilterBypassed(automod.mentions)) {
         const mentions = automod.mentions;
         const totalMentions = message.mentions.users.size + 
                              message.mentions.roles.size + 
@@ -105,33 +131,85 @@ export const AutoModService = {
 
         if (totalMentions > mentions.limit) {
           const actions = mentions.actions || (mentions.action ? [mentions.action] : ['delete']);
+          await incrementStat('mentions');
           await this.executePunishment(message, actions, `Mass mentions (${totalMentions} pings)`, client, config);
           return true;
         }
       }
 
       // --- Filter 3: Invite Links ---
-      if (automod.invite?.enabled) {
+      if (automod.invite?.enabled && !isFilterBypassed(automod.invite)) {
         const inviteRegex = /(discord\.(gg|io|me|li)\/.+|discord(app)?\.com\/invite\/.+)/i;
         if (inviteRegex.test(content)) {
           const actions = automod.invite.actions || (automod.invite.action ? [automod.invite.action] : ['delete']);
+          await incrementStat('invite');
           await this.executePunishment(message, actions, 'Posting invite links', client, config);
           return true;
         }
       }
 
       // --- Filter 4: External Links (Exclude invites if invite filter is disabled)
-      if (automod.link?.enabled) {
+      if (automod.link?.enabled && !isFilterBypassed(automod.link)) {
         const urlRegex = /(https?:\/\/[^\s]+)/gi;
-        if (urlRegex.test(content)) {
-          const actions = automod.link.actions || (automod.link.action ? [automod.link.action] : ['delete']);
-          await this.executePunishment(message, actions, 'Posting external links', client, config);
-          return true;
+        const urls = content.match(urlRegex);
+        if (urls && urls.length > 0) {
+          const link = automod.link;
+          const whitelist = link.whitelist || [];
+          const blacklist = link.blacklist || [];
+          
+          let triggerBlock = false;
+          let blockReason = 'Posting external links';
+
+          for (const url of urls) {
+            try {
+              const urlObj = new URL(url);
+              const domain = urlObj.hostname.toLowerCase().replace(/^www\./, '');
+
+              // Check blacklist first
+              const isBlacklisted = blacklist.some(b => {
+                const cleanB = b.toLowerCase().replace(/^www\./, '');
+                return domain === cleanB || domain.endsWith('.' + cleanB);
+              });
+
+              if (isBlacklisted) {
+                triggerBlock = true;
+                blockReason = `Posting blacklisted link (${domain})`;
+                break;
+              }
+
+              // Check whitelist if whitelist is configured
+              if (whitelist.length > 0) {
+                const isWhitelisted = whitelist.some(w => {
+                  const cleanW = w.toLowerCase().replace(/^www\./, '');
+                  return domain === cleanW || domain.endsWith('.' + cleanW);
+                });
+
+                if (!isWhitelisted) {
+                  triggerBlock = true;
+                  blockReason = `Posting link not in whitelist (${domain})`;
+                  break;
+                }
+              } else {
+                // If no whitelist is configured, but link filter is enabled (and not blacklisted, which was checked), block all links by default
+                triggerBlock = true;
+              }
+            } catch (urlErr) {
+              // Fallback for malformed URLs
+              triggerBlock = true;
+            }
+          }
+
+          if (triggerBlock) {
+            const actions = link.actions || (link.action ? [link.action] : ['delete']);
+            await incrementStat('link');
+            await this.executePunishment(message, actions, blockReason, client, config);
+            return true;
+          }
         }
       }
 
       // --- Filter 5: Banned Words ---
-      if (automod.words?.enabled && automod.words.list?.length > 0) {
+      if (automod.words?.enabled && !isFilterBypassed(automod.words) && automod.words.list?.length > 0) {
         const wordsList = automod.words.list;
         const lowercaseContent = content.toLowerCase();
         
@@ -142,6 +220,7 @@ export const AutoModService = {
 
         if (matchedWord) {
           const actions = automod.words.actions || (automod.words.action ? [automod.words.action] : ['delete']);
+          await incrementStat('words');
           await this.executePunishment(message, actions, `Using banned word: ||${matchedWord}||`, client, config);
           return true;
         }
@@ -177,6 +256,7 @@ export const AutoModService = {
       }
 
       // 2. Warn User
+      let currentWarnCount = 0;
       if (actions.includes('warn')) {
         const result = await WarningService.addWarning({
           guildId: guild.id,
@@ -186,6 +266,7 @@ export const AutoModService = {
         });
 
         if (result.success) {
+          currentWarnCount = result.totalCount;
           await logModerationAction({
             client,
             guild,
@@ -255,24 +336,80 @@ export const AutoModService = {
             reason: `[AutoMod Retry] ${reason}`
           });
 
-          await logModerationAction({
-            client,
-            guild,
-            event: {
-              action: "User Warned",
-              target: `${author.tag} (${author.id})`,
-              executor: `${client.user.tag} (${client.user.id})`,
-              reason: `[AutoMod Retry] ${reason}`,
-              metadata: {
-                userId: author.id,
-                moderatorId: client.user.id,
-                totalWarns: result.totalCount,
-                warningNumber: result.totalCount,
-                warningId: result.id
+          if (result.success) {
+            currentWarnCount = result.totalCount;
+            await logModerationAction({
+              client,
+              guild,
+              event: {
+                action: "User Warned",
+                target: `${author.tag} (${author.id})`,
+                executor: `${client.user.tag} (${client.user.id})`,
+                reason: `[AutoMod Retry] ${reason}`,
+                metadata: {
+                  userId: author.id,
+                  moderatorId: client.user.id,
+                  totalWarns: result.totalCount,
+                  warningNumber: result.totalCount,
+                  warningId: result.id
+                }
               }
+            });
+            actionsExecuted.push(`WARN (Hierarchy fallback - total warnings: ${result.totalCount})`);
+          }
+        }
+      }
+
+      // Check for Warning Escalation
+      const escalation = guildConfig.automod?.escalation;
+      if (escalation && escalation.enabled && currentWarnCount > 0 && escalation.rules?.length > 0) {
+        // Find matching escalation rule
+        const rule = escalation.rules
+          .filter(r => r.warnCount === currentWarnCount && r.action !== 'none')
+          .sort((a, b) => b.warnCount - a.warnCount)[0]; // match highest/current count rule
+
+        if (rule) {
+          const botMember = await guild.members.fetch(client.user.id).catch(() => null);
+          if (botMember && member && member.moderatable && botMember.roles.highest.position > member.roles.highest.position) {
+            const ruleReason = `[AutoMod Warning Escalation] Reached warning threshold of ${rule.warnCount} warnings.`;
+            
+            if (rule.action === 'timeout') {
+              const durationMs = rule.durationMs || 3600000;
+              await ModerationService.timeoutUser({
+                guild,
+                member,
+                moderator: botMember,
+                durationMs,
+                reason: ruleReason
+              });
+              actionsExecuted.push(`ESCALATED TIMEOUT (${durationMs / 60000}m)`);
+              await message.channel.send({
+                content: `🔇 ${author} has been timed out for ${durationMs / 60000}m due to accumulating ${rule.warnCount} warnings.`
+              }).then(msg => setTimeout(() => msg.delete().catch(() => {}), 10000));
+            } else if (rule.action === 'kick') {
+              await ModerationService.kickUser({
+                guild,
+                member,
+                moderator: botMember,
+                reason: ruleReason
+              });
+              actionsExecuted.push('ESCALATED KICK');
+              await message.channel.send({
+                content: `👢 ${author.tag} has been kicked from the server due to accumulating ${rule.warnCount} warnings.`
+              }).then(msg => setTimeout(() => msg.delete().catch(() => {}), 10000));
+            } else if (rule.action === 'ban') {
+              await ModerationService.banUser({
+                guild,
+                user: author,
+                moderator: botMember,
+                reason: ruleReason
+              });
+              actionsExecuted.push('ESCALATED BAN');
+              await message.channel.send({
+                content: `🔨 ${author.tag} has been banned from the server due to accumulating ${rule.warnCount} warnings.`
+              }).then(msg => setTimeout(() => msg.delete().catch(() => {}), 10000));
             }
-          });
-          actionsExecuted.push(`WARN (Hierarchy fallback - total warnings: ${result.totalCount})`);
+          }
         }
       }
 

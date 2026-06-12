@@ -148,12 +148,14 @@ export default {
       subcmd.setName('panel').setDescription('Open the interactive AutoMod Control Panel')
     )
     .addSubcommand(subcmd =>
-      subcmd.setName('logging')
-        .setDescription('Set the channel for AutoMod logs')
+      subcmd.setName('logging').setDescription('Set the channel for AutoMod logs')
         .addChannelOption(opt =>
           opt.setName('channel').setDescription('Log channel').setRequired(true)
             .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
         )
+    )
+    .addSubcommand(subcmd =>
+      subcmd.setName('stats').setDescription('Display AutoMod moderation statistics')
     ),
 
   category: 'Moderation',
@@ -393,6 +395,34 @@ export default {
         }
       }
 
+      if (subcommand === 'stats') {
+        const statsKey = `moderation:automod_stats:${guildId}`;
+        const stats = await import('../../utils/database.js').then(db => db.getFromDb(statsKey, {}));
+        const total = stats.total || 0;
+        const invite = stats.invite || 0;
+        const link = stats.link || 0;
+        const words = stats.words || 0;
+        const mentions = stats.mentions || 0;
+        const spam = stats.spam || 0;
+
+        const embed = new EmbedBuilder()
+          .setTitle('🛡️ AutoMod Incident Statistics')
+          .setDescription('Real-time statistics of message violations blocked and moderated by RagnirBot AutoMod.')
+          .setColor('#1E90FF')
+          .addFields(
+            { name: 'Total Incidents Blocked', value: `📈 **${total}**`, inline: false },
+            { name: 'Invite Link Triggers', value: `🔗 \`${invite}\` times`, inline: true },
+            { name: 'External Link Triggers', value: `🌐 \`${link}\` times`, inline: true },
+            { name: 'Banned Word Triggers', value: `🔤 \`${words}\` times`, inline: true },
+            { name: 'Mass Mention Triggers', value: `👥 \`${mentions}\` times`, inline: true },
+            { name: 'Spam Rate Triggers', value: `⚡ \`${spam}\` times`, inline: true }
+          )
+          .setFooter({ text: 'AutoMod Protection active' })
+          .setTimestamp();
+
+        return await InteractionHelper.universalReply(interaction, { embeds: [embed] });
+      }
+
       if (subcommand === 'panel') {
         return await this.sendPanel(interaction, guildConfig, client);
       }
@@ -411,13 +441,15 @@ export default {
       const status = am.enabled ? '🟢 **Enabled**' : '🔴 **Disabled**';
       const logChannel = am.logChannelId ? `<#${am.logChannelId}>` : '`Global Log Channel`';
       const timeoutVal = am.timeoutDuration || 600000;
+      const esc = am.escalation || { enabled: false, rules: [] };
+      const escStatus = esc.enabled ? '🟢 **Enabled**' : '🔴 **Disabled**';
 
       const getActionsText = (settings) => {
         const acts = settings.actions || (settings.action ? [settings.action] : []);
         return acts.length > 0 ? acts.map(a => `\`${a}\``).join(', ') : '`none`';
       };
 
-      return new EmbedBuilder()
+      const embed = new EmbedBuilder()
         .setTitle('🛡️ AutoMod Control Panel')
         .setDescription('Manage your server auto-moderation filters, rules, action punishments, and whitelists directly below.')
         .setColor('#336699')
@@ -425,6 +457,7 @@ export default {
           { name: 'Global State', value: status, inline: true },
           { name: 'Logs Channel', value: logChannel, inline: true },
           { name: 'Timeout Duration', value: `\`${timeoutVal / 60000}m\``, inline: true },
+          { name: 'Warning Escalation', value: escStatus, inline: true },
           { 
             name: 'Invite Filter', 
             value: `State: ${am.invite.enabled ? '🟢' : '🔴'}\nActions: ${getActionsText(am.invite)}`, 
@@ -432,7 +465,7 @@ export default {
           },
           { 
             name: 'Links Filter', 
-            value: `State: ${am.link.enabled ? '🟢' : '🔴'}\nActions: ${getActionsText(am.link)}`, 
+            value: `State: ${am.link.enabled ? '🟢' : '🔴'}\nActions: ${getActionsText(am.link)}\nWhitelist: \`${am.link.whitelist?.length || 0}\` | Blacklist: \`${am.link.blacklist?.length || 0}\``, 
             inline: false 
           },
           { 
@@ -452,6 +485,7 @@ export default {
           }
         )
         .setTimestamp();
+      return embed;
     };
 
     const mainRowButtons = () => new ActionRowBuilder().addComponents(
@@ -475,6 +509,8 @@ export default {
           { label: 'Prohibited Words Filter', value: 'words', description: 'Censor banned words' },
           { label: 'Mass Mentions Filter', value: 'mentions', description: 'Limit maximum mentions in a message' },
           { label: 'Anti-Spam Filter', value: 'spam', description: 'Rate limit message frequency' },
+          { label: 'Warning Escalation Config', value: 'escalation', description: 'Configure warning threshold rules' },
+          { label: 'Link Domain Rules', value: 'link_domains', description: 'Configure Whitelisted/Blacklisted Link Domains' },
           { label: 'Bypass Whitelists', value: 'whitelist', description: 'Ignored channels and roles' },
           { label: 'Timeout Duration Settings', value: 'timeout_duration', description: 'Set custom mute/timeout length' }
         ])
@@ -496,12 +532,17 @@ export default {
         return acts.length > 0 ? acts.map(a => `\`${a}\``).join(', ') : '`none (log alert only)`';
       };
 
+      const ignoredChans = settings.ignoredChannels?.map(id => `<#${id}>`).join(', ') || 'None';
+      const ignoredRls = settings.ignoredRoles?.map(id => `<@&${id}>`).join(', ') || 'None';
+
       const embed = new EmbedBuilder()
         .setTitle(`⚙️ Configure: ${filterTitles[filterName]}`)
         .setColor('#336699')
         .addFields(
           { name: 'Status', value: settings.enabled ? '🟢 **Enabled**' : '🔴 **Disabled**', inline: true },
-          { name: 'Punishments (Multiple Allowed)', value: getActionsText(settings), inline: true }
+          { name: 'Punishments (Multiple Allowed)', value: getActionsText(settings), inline: true },
+          { name: 'Filter Ignored Channels', value: ignoredChans, inline: false },
+          { name: 'Filter Ignored Roles', value: ignoredRls, inline: false }
         );
 
       if (filterName === 'words') {
@@ -543,6 +584,57 @@ export default {
             { label: 'Timeout User', value: 'timeout', description: 'Mutes the user dynamically', default: acts.includes('timeout') }
           ])
       );
+    };
+
+    const filterRowBypassSelects = (filterName) => [
+      new ActionRowBuilder().addComponents(
+        new ChannelSelectMenuBuilder()
+          .setCustomId(`am_bypass_chan_${filterName}`)
+          .setPlaceholder('Toggle Filter Ignored Channel...')
+      ),
+      new ActionRowBuilder().addComponents(
+        new RoleSelectMenuBuilder()
+          .setCustomId(`am_bypass_role_${filterName}`)
+          .setPlaceholder('Toggle Filter Ignored Role...')
+      )
+    ];
+
+    const generateEscalationEmbed = (config) => {
+      const esc = config.automod.escalation || { enabled: false, rules: [] };
+      const status = esc.enabled ? '🟢 **Enabled**' : '🔴 **Disabled**';
+      
+      const embed = new EmbedBuilder()
+        .setTitle('⚙️ Warning Escalation Rules')
+        .setDescription('Configure automatic punishments when a user reaches specific active warning milestones.')
+        .setColor('#8B0000')
+        .addFields({ name: 'Escalation Status', value: status, inline: false });
+
+      if (esc.rules && esc.rules.length > 0) {
+        const rulesText = esc.rules.map(r => `• **${r.warnCount} Warnings**: \`${r.action.toUpperCase()}\`${r.action === 'timeout' ? ` (${r.durationMs / 60000}m)` : ''}`).join('\n');
+        embed.addFields({ name: 'Active Rules', value: rulesText });
+      } else {
+        embed.addFields({ name: 'Active Rules', value: 'None configured.' });
+      }
+
+      return embed;
+    };
+
+    const generateLinkDomainsEmbed = (config) => {
+      const link = config.automod.link;
+      const whitelist = link.whitelist || [];
+      const blacklist = link.blacklist || [];
+
+      const wlText = whitelist.length > 0 ? whitelist.map(d => `\`${d}\``).join(', ') : '*No whitelist restrictions configured. All links not blacklisted are allowed.*';
+      const blText = blacklist.length > 0 ? blacklist.map(d => `\`${d}\``).join(', ') : '*None.*';
+
+      return new EmbedBuilder()
+        .setTitle('🌐 Link Domain Rules')
+        .setDescription('Configure safe/whitelisted domains (e.g. `youtube.com`) or custom blacklisted domains.')
+        .setColor('#4682B4')
+        .addFields(
+          { name: 'Whitelisted Domains (Only these domains allowed if list is not empty)', value: wlText },
+          { name: 'Blacklisted Domains (Never allowed)', value: blText }
+        );
     };
 
     const generateWhitelistEmbed = (config) => {
@@ -606,7 +698,7 @@ export default {
       time: 180000
     });
 
-    let currentFilterView = null; // null for main, or 'invite', 'link', 'words', 'mentions', 'spam', 'whitelist', 'timeout_duration'
+    let currentFilterView = null; // null for main, or 'invite', 'link', 'words', 'mentions', 'spam', 'whitelist', 'timeout_duration', 'escalation', 'link_domains'
 
     collector.on('collect', async (i) => {
       try {
@@ -643,12 +735,34 @@ export default {
                 new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('am_back_to_main').setLabel('Back to Main').setStyle(ButtonStyle.Secondary))
               ]
             });
+          } else if (currentFilterView === 'escalation') {
+            return await i.editReply({
+              embeds: [generateEscalationEmbed(currentConfig)],
+              components: [
+                new ActionRowBuilder().addComponents(
+                  new ButtonBuilder().setCustomId('am_toggle_escalation').setLabel(currentConfig.automod.escalation?.enabled ? 'Disable Escalation' : 'Enable Escalation').setStyle(currentConfig.automod.escalation?.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
+                  new ButtonBuilder().setCustomId('am_back_to_main').setLabel('Back to Main').setStyle(ButtonStyle.Secondary)
+                )
+              ]
+            });
+          } else if (currentFilterView === 'link_domains') {
+            return await i.editReply({
+              embeds: [generateLinkDomainsEmbed(currentConfig)],
+              components: [
+                new ActionRowBuilder().addComponents(
+                  new ButtonBuilder().setCustomId('am_add_link_domain').setLabel('Add Domain').setStyle(ButtonStyle.Primary),
+                  new ButtonBuilder().setCustomId('am_remove_link_domain').setLabel('Remove Domain').setStyle(ButtonStyle.Danger),
+                  new ButtonBuilder().setCustomId('am_back_to_main').setLabel('Back to Main').setStyle(ButtonStyle.Secondary)
+                )
+              ]
+            });
           } else if (currentFilterView && currentFilterView !== 'whitelist') {
             const isEnabled = currentConfig.automod[currentFilterView].enabled;
             const currentActions = currentConfig.automod[currentFilterView].actions || (currentConfig.automod[currentFilterView].action ? [currentConfig.automod[currentFilterView].action] : []);
             const components = [
               filterRowButtons(currentFilterView, isEnabled),
-              filterRowActionSelect(currentFilterView, currentActions)
+              filterRowActionSelect(currentFilterView, currentActions),
+              ...filterRowBypassSelects(currentFilterView)
             ];
             return await i.editReply({
               embeds: [generateFilterEmbed(currentConfig, currentFilterView)],
@@ -695,17 +809,39 @@ export default {
                 new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('am_back_to_main').setLabel('Back to Main').setStyle(ButtonStyle.Secondary))
               ]
             });
+          } else if (val === 'escalation') {
+            return await i.editReply({
+              embeds: [generateEscalationEmbed(currentConfig)],
+              components: [
+                new ActionRowBuilder().addComponents(
+                  new ButtonBuilder().setCustomId('am_toggle_escalation').setLabel(currentConfig.automod.escalation?.enabled ? 'Disable Escalation' : 'Enable Escalation').setStyle(currentConfig.automod.escalation?.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
+                  new ButtonBuilder().setCustomId('am_back_to_main').setLabel('Back to Main').setStyle(ButtonStyle.Secondary)
+                )
+              ]
+            });
+          } else if (val === 'link_domains') {
+            return await i.editReply({
+              embeds: [generateLinkDomainsEmbed(currentConfig)],
+              components: [
+                new ActionRowBuilder().addComponents(
+                  new ButtonBuilder().setCustomId('am_add_link_domain').setLabel('Add Domain').setStyle(ButtonStyle.Primary),
+                  new ButtonBuilder().setCustomId('am_remove_link_domain').setLabel('Remove Domain').setStyle(ButtonStyle.Danger),
+                  new ButtonBuilder().setCustomId('am_back_to_main').setLabel('Back to Main').setStyle(ButtonStyle.Secondary)
+                )
+              ]
+            });
           } else {
             const isEnabled = currentConfig.automod[val].enabled;
             const currentActions = currentConfig.automod[val].actions || (currentConfig.automod[val].action ? [currentConfig.automod[val].action] : []);
             const components = [
               filterRowButtons(val, isEnabled),
-              filterRowActionSelect(val, currentActions)
+              filterRowActionSelect(val, currentActions),
+              ...filterRowBypassSelects(val)
             ];
 
             if (val === 'mentions') {
               // Add limits select row
-              components.push(
+              components.splice(2, 0,
                 new ActionRowBuilder().addComponents(
                   new StringSelectMenuBuilder()
                     .setCustomId('am_limit_filter_mentions')
@@ -719,7 +855,7 @@ export default {
               );
             } else if (val === 'spam') {
               // Add limit and timeframe select rows
-              components.push(
+              components.splice(2, 0,
                 new ActionRowBuilder().addComponents(
                   new StringSelectMenuBuilder()
                     .setCustomId('am_limit_filter_spam')
@@ -754,6 +890,156 @@ export default {
           }
         }
 
+        // Handle warning escalation toggling
+        if (i.customId === 'am_toggle_escalation') {
+          if (!currentConfig.automod.escalation) {
+            currentConfig.automod.escalation = {
+              enabled: false,
+              rules: [
+                { warnCount: 3, action: 'timeout', durationMs: 3600000 },
+                { warnCount: 5, action: 'kick', durationMs: 0 }
+              ]
+            };
+          }
+          currentConfig.automod.escalation.enabled = !currentConfig.automod.escalation.enabled;
+          await setGuildConfig(client, interaction.guild.id, currentConfig);
+          await i.deferUpdate();
+          guildConfig = currentConfig;
+          return await i.editReply({
+            embeds: [generateEscalationEmbed(currentConfig)],
+            components: [
+              new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('am_toggle_escalation').setLabel(currentConfig.automod.escalation.enabled ? 'Disable Escalation' : 'Enable Escalation').setStyle(currentConfig.automod.escalation.enabled ? ButtonStyle.Danger : ButtonStyle.Success),
+                new ButtonBuilder().setCustomId('am_back_to_main').setLabel('Back to Main').setStyle(ButtonStyle.Secondary)
+              )
+            ]
+          });
+        }
+
+        // Link Domain Configuration Actions
+        if (i.customId === 'am_add_link_domain' || i.customId === 'am_remove_link_domain') {
+          const isAdd = i.customId === 'am_add_link_domain';
+          // Send a modal input response
+          const { ModalBuilder, TextInputBuilder, TextInputStyle } = await import('discord.js');
+          const modal = new ModalBuilder()
+            .setCustomId(isAdd ? 'am_modal_add_domain' : 'am_modal_remove_domain')
+            .setTitle(isAdd ? 'Add Link Domain Rule' : 'Remove Link Domain Rule');
+
+          const listInput = new TextInputBuilder()
+            .setCustomId('domain_list_type')
+            .setLabel('List Type (whitelist / blacklist)')
+            .setPlaceholder('Type either "whitelist" or "blacklist"')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true);
+
+          const domainInput = new TextInputBuilder()
+            .setCustomId('domain_name')
+            .setLabel('Domain name(s) (comma separated)')
+            .setPlaceholder('google.com, youtube.com')
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(true);
+
+          modal.addComponents(
+            new ActionRowBuilder().addComponents(listInput),
+            new ActionRowBuilder().addComponents(domainInput)
+          );
+
+          await i.showModal(modal);
+
+          const submitted = await i.awaitModalSubmit({
+            time: 60000,
+            filter: (md) => md.user.id === interaction.user.id
+          }).catch(() => null);
+
+          if (submitted) {
+            await submitted.deferUpdate();
+            const listType = submitted.fields.getTextInputValue('domain_list_type').trim().toLowerCase();
+            const domains = submitted.fields.getTextInputValue('domain_name').split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
+
+            if (listType === 'whitelist' || listType === 'blacklist') {
+              if (!currentConfig.automod.link[listType]) currentConfig.automod.link[listType] = [];
+              if (isAdd) {
+                for (const d of domains) {
+                  if (!currentConfig.automod.link[listType].includes(d)) {
+                    currentConfig.automod.link[listType].push(d);
+                  }
+                }
+              } else {
+                currentConfig.automod.link[listType] = currentConfig.automod.link[listType].filter(d => !domains.includes(d));
+              }
+              await setGuildConfig(client, interaction.guild.id, currentConfig);
+              guildConfig = currentConfig;
+            }
+
+            return await submitted.editReply({
+              embeds: [generateLinkDomainsEmbed(currentConfig)],
+              components: [
+                new ActionRowBuilder().addComponents(
+                  new ButtonBuilder().setCustomId('am_add_link_domain').setLabel('Add Domain').setStyle(ButtonStyle.Primary),
+                  new ButtonBuilder().setCustomId('am_remove_link_domain').setLabel('Remove Domain').setStyle(ButtonStyle.Danger),
+                  new ButtonBuilder().setCustomId('am_back_to_main').setLabel('Back to Main').setStyle(ButtonStyle.Secondary)
+                )
+              ]
+            });
+          }
+          return;
+        }
+
+        // Handle Filter Ignored Channels and Roles updates
+        if (i.customId.startsWith('am_bypass_chan_')) {
+          const filter = i.customId.replace('am_bypass_chan_', '');
+          const chanId = i.values[0];
+          if (!currentConfig.automod[filter].ignoredChannels) currentConfig.automod[filter].ignoredChannels = [];
+          
+          if (currentConfig.automod[filter].ignoredChannels.includes(chanId)) {
+            currentConfig.automod[filter].ignoredChannels = currentConfig.automod[filter].ignoredChannels.filter(id => id !== chanId);
+          } else {
+            currentConfig.automod[filter].ignoredChannels.push(chanId);
+          }
+          await setGuildConfig(client, interaction.guild.id, currentConfig);
+          await i.deferUpdate();
+          guildConfig = currentConfig;
+
+          const isEnabled = currentConfig.automod[filter].enabled;
+          const currentActions = currentConfig.automod[filter].actions || (currentConfig.automod[filter].action ? [currentConfig.automod[filter].action] : []);
+          const components = [
+            filterRowButtons(filter, isEnabled),
+            filterRowActionSelect(filter, currentActions),
+            ...filterRowBypassSelects(filter)
+          ];
+          return await i.editReply({
+            embeds: [generateFilterEmbed(currentConfig, filter)],
+            components
+          });
+        }
+
+        if (i.customId.startsWith('am_bypass_role_')) {
+          const filter = i.customId.replace('am_bypass_role_', '');
+          const roleId = i.values[0];
+          if (!currentConfig.automod[filter].ignoredRoles) currentConfig.automod[filter].ignoredRoles = [];
+          
+          if (currentConfig.automod[filter].ignoredRoles.includes(roleId)) {
+            currentConfig.automod[filter].ignoredRoles = currentConfig.automod[filter].ignoredRoles.filter(id => id !== roleId);
+          } else {
+            currentConfig.automod[filter].ignoredRoles.push(roleId);
+          }
+          await setGuildConfig(client, interaction.guild.id, currentConfig);
+          await i.deferUpdate();
+          guildConfig = currentConfig;
+
+          const isEnabled = currentConfig.automod[filter].enabled;
+          const currentActions = currentConfig.automod[filter].actions || (currentConfig.automod[filter].action ? [currentConfig.automod[filter].action] : []);
+          const components = [
+            filterRowButtons(filter, isEnabled),
+            filterRowActionSelect(filter, currentActions),
+            ...filterRowBypassSelects(filter)
+          ];
+          return await i.editReply({
+            embeds: [generateFilterEmbed(currentConfig, filter)],
+            components
+          });
+        }
+
         // Handle Sub-toggles
         if (i.customId.startsWith('am_toggle_filter_')) {
           const filter = i.customId.replace('am_toggle_filter_', '');
@@ -766,11 +1052,12 @@ export default {
           const currentActions = currentConfig.automod[filter].actions || (currentConfig.automod[filter].action ? [currentConfig.automod[filter].action] : []);
           const components = [
             filterRowButtons(filter, isEnabled),
-            filterRowActionSelect(filter, currentActions)
+            filterRowActionSelect(filter, currentActions),
+            ...filterRowBypassSelects(filter)
           ];
 
           if (filter === 'mentions') {
-            components.push(
+            components.splice(2, 0,
               new ActionRowBuilder().addComponents(
                 new StringSelectMenuBuilder()
                   .setCustomId('am_limit_filter_mentions')
@@ -783,7 +1070,7 @@ export default {
               )
             );
           } else if (filter === 'spam') {
-            components.push(
+            components.splice(2, 0,
               new ActionRowBuilder().addComponents(
                 new StringSelectMenuBuilder()
                   .setCustomId('am_limit_filter_spam')
@@ -829,11 +1116,12 @@ export default {
           const isEnabled = currentConfig.automod[filter].enabled;
           const components = [
             filterRowButtons(filter, isEnabled),
-            filterRowActionSelect(filter, selectedActions)
+            filterRowActionSelect(filter, selectedActions),
+            ...filterRowBypassSelects(filter)
           ];
 
           if (filter === 'mentions') {
-            components.push(
+            components.splice(2, 0,
               new ActionRowBuilder().addComponents(
                 new StringSelectMenuBuilder()
                   .setCustomId('am_limit_filter_mentions')
@@ -846,7 +1134,7 @@ export default {
               )
             );
           } else if (filter === 'spam') {
-            components.push(
+            components.splice(2, 0,
               new ActionRowBuilder().addComponents(
                 new StringSelectMenuBuilder()
                   .setCustomId('am_limit_filter_spam')
@@ -902,7 +1190,8 @@ export default {
                   value: String(l),
                   default: l === limit
                 })))
-            )
+            ),
+            ...filterRowBypassSelects('mentions')
           ];
 
           return await i.editReply({
@@ -947,7 +1236,8 @@ export default {
                   ...t,
                   default: currentConfig.automod.spam.timeframe === parseInt(t.value)
                 })))
-            )
+            ),
+            ...filterRowBypassSelects('spam')
           ];
 
           return await i.editReply({
@@ -992,7 +1282,8 @@ export default {
                   ...t,
                   default: parseInt(t.value) === timeframe
                 })))
-            )
+            ),
+            ...filterRowBypassSelects('spam')
           ];
 
           return await i.editReply({

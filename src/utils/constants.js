@@ -80,11 +80,18 @@ export const DEFAULT_GUILD_CONFIG = {
         ignoredChannels: [],
         ignoredRoles: [],
         timeoutDuration: 600000,
-        invite: { enabled: false, actions: ['delete'] },
-        link: { enabled: false, actions: ['delete'] },
-        words: { enabled: false, actions: ['delete'], list: [] },
-        mentions: { enabled: false, limit: 5, actions: ['delete'] },
-        spam: { enabled: false, limit: 5, timeframe: 5000, actions: ['delete', 'timeout'] }
+        escalation: {
+            enabled: false,
+            rules: [
+                { warnCount: 3, action: 'timeout', durationMs: 3600000 },
+                { warnCount: 5, action: 'kick', durationMs: 0 }
+            ]
+        },
+        invite: { enabled: false, actions: ['delete'], ignoredChannels: [], ignoredRoles: [] },
+        link: { enabled: false, actions: ['delete'], ignoredChannels: [], ignoredRoles: [], whitelist: [], blacklist: [] },
+        words: { enabled: false, actions: ['delete'], list: [], ignoredChannels: [], ignoredRoles: [] },
+        mentions: { enabled: false, limit: 5, actions: ['delete'], ignoredChannels: [], ignoredRoles: [] },
+        spam: { enabled: false, limit: 5, timeframe: 5000, actions: ['delete', 'timeout'], ignoredChannels: [], ignoredRoles: [] }
     }
 };
 

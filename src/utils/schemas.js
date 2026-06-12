@@ -59,36 +59,67 @@ const AntiNukeConfigSchema = z.object({
   settings: z.record(AntiNukeSettingSchema).optional()
 }).optional();
 
+const WarningEscalationRuleSchema = z.object({
+  warnCount: z.number().int().min(1),
+  action: z.enum(['timeout', 'kick', 'ban', 'none']),
+  durationMs: z.number().int().min(0).default(3600000)
+});
+
 const AutoModConfigSchema = z.object({
   enabled: z.boolean().default(false),
   logChannelId: z.string().nullable().optional(),
   ignoredChannels: z.array(z.string()).default([]),
   ignoredRoles: z.array(z.string()).default([]),
   timeoutDuration: z.number().int().min(1000).default(600000),
+  escalation: z.object({
+    enabled: z.boolean().default(false),
+    rules: z.array(WarningEscalationRuleSchema).default([
+      { warnCount: 3, action: 'timeout', durationMs: 3600000 },
+      { warnCount: 5, action: 'kick', durationMs: 0 }
+    ])
+  }).default({
+    enabled: false,
+    rules: [
+      { warnCount: 3, action: 'timeout', durationMs: 3600000 },
+      { warnCount: 5, action: 'kick', durationMs: 0 }
+    ]
+  }),
   invite: z.object({
     enabled: z.boolean().default(false),
-    actions: z.array(z.enum(['delete', 'warn', 'timeout'])).default(['delete'])
-  }).default({ enabled: false, actions: ['delete'] }),
+    actions: z.array(z.enum(['delete', 'warn', 'timeout'])).default(['delete']),
+    ignoredChannels: z.array(z.string()).default([]),
+    ignoredRoles: z.array(z.string()).default([])
+  }).default({ enabled: false, actions: ['delete'], ignoredChannels: [], ignoredRoles: [] }),
   link: z.object({
     enabled: z.boolean().default(false),
-    actions: z.array(z.enum(['delete', 'warn', 'timeout'])).default(['delete'])
-  }).default({ enabled: false, actions: ['delete'] }),
+    actions: z.array(z.enum(['delete', 'warn', 'timeout'])).default(['delete']),
+    ignoredChannels: z.array(z.string()).default([]),
+    ignoredRoles: z.array(z.string()).default([]),
+    whitelist: z.array(z.string()).default([]),
+    blacklist: z.array(z.string()).default([])
+  }).default({ enabled: false, actions: ['delete'], ignoredChannels: [], ignoredRoles: [], whitelist: [], blacklist: [] }),
   words: z.object({
     enabled: z.boolean().default(false),
     actions: z.array(z.enum(['delete', 'warn', 'timeout'])).default(['delete']),
-    list: z.array(z.string()).default([])
-  }).default({ enabled: false, actions: ['delete'], list: [] }),
+    list: z.array(z.string()).default([]),
+    ignoredChannels: z.array(z.string()).default([]),
+    ignoredRoles: z.array(z.string()).default([])
+  }).default({ enabled: false, actions: ['delete'], list: [], ignoredChannels: [], ignoredRoles: [] }),
   mentions: z.object({
     enabled: z.boolean().default(false),
     limit: z.number().int().min(1).default(5),
-    actions: z.array(z.enum(['delete', 'warn', 'timeout'])).default(['delete'])
-  }).default({ enabled: false, limit: 5, actions: ['delete'] }),
+    actions: z.array(z.enum(['delete', 'warn', 'timeout'])).default(['delete']),
+    ignoredChannels: z.array(z.string()).default([]),
+    ignoredRoles: z.array(z.string()).default([])
+  }).default({ enabled: false, limit: 5, actions: ['delete'], ignoredChannels: [], ignoredRoles: [] }),
   spam: z.object({
     enabled: z.boolean().default(false),
     limit: z.number().int().min(1).default(5),
     timeframe: z.number().int().min(1000).default(5000),
-    actions: z.array(z.enum(['delete', 'warn', 'timeout'])).default(['delete', 'timeout'])
-  }).default({ enabled: false, limit: 5, timeframe: 5000, actions: ['delete', 'timeout'] })
+    actions: z.array(z.enum(['delete', 'warn', 'timeout'])).default(['delete', 'timeout']),
+    ignoredChannels: z.array(z.string()).default([]),
+    ignoredRoles: z.array(z.string()).default([])
+  }).default({ enabled: false, limit: 5, timeframe: 5000, actions: ['delete', 'timeout'], ignoredChannels: [], ignoredRoles: [] })
 }).optional();
 
 export const GuildConfigSchema = z
