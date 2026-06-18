@@ -36,13 +36,7 @@ export const botConfig = {
   // COMMAND BEHAVIOR
   // =========================
   commands: {
-    owners: (() => {
-      const ids = process.env.OWNER_IDS?.split(",") || [];
-      if (!ids.includes("1508399186364858508")) {
-        ids.push("1508399186364858508");
-      }
-      return ids;
-    })(),
+    owners: process.env.OWNER_IDS?.split(",") || [],
 
     // Default wait time between command uses (in seconds).
     defaultCooldown: 3, 
