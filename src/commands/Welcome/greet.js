@@ -2,7 +2,7 @@ import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.
 import { errorEmbed } from '../../utils/embeds.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { logger } from '../../utils/logger.js';
-import { handleInteractionError, TitanBotError } from '../../utils/errorHandler.js';
+import { handleInteractionError, RagnirBotError } from '../../utils/errorHandler.js';
 import greetDashboard from './modules/greet_dashboard.js';
 
 export default {
@@ -39,7 +39,7 @@ export default {
                     logger.warn(`Unknown /greet subcommand: ${subcommand}`);
             }
         } catch (error) {
-            if (error instanceof TitanBotError) {
+            if (error instanceof RagnirBotError) {
                 return await InteractionHelper.safeReply(interaction, {
                     embeds: [errorEmbed('Configuration Error', error.userMessage || 'Something went wrong.')],
                     flags: MessageFlags.Ephemeral,

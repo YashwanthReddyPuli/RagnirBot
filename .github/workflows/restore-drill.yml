@@ -13,24 +13,24 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_USER: titanbot
-          POSTGRES_PASSWORD: titanbot
-          POSTGRES_DB: titanbot
+          POSTGRES_USER: ragnirbot
+          POSTGRES_PASSWORD: ragnirbot
+          POSTGRES_DB: ragnirbot
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U titanbot -d titanbot"
+          --health-cmd "pg_isready -U ragnirbot -d ragnirbot"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
 
     env:
-      POSTGRES_URL: postgresql://titanbot:titanbot@localhost:5432/titanbot
+      POSTGRES_URL: postgresql://ragnirbot:ragnirbot@localhost:5432/ragnirbot
       POSTGRES_HOST: localhost
       POSTGRES_PORT: 5432
-      POSTGRES_DB: titanbot
-      POSTGRES_USER: titanbot
-      POSTGRES_PASSWORD: titanbot
+      POSTGRES_DB: ragnirbot
+      POSTGRES_USER: ragnirbot
+      POSTGRES_PASSWORD: ragnirbot
       POSTGRES_SSL: "false"
       SCHEMA_VERSION: "1"
       SCHEMA_VERSION_LABEL: "baseline-v1"

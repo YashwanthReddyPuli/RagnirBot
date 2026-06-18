@@ -21,7 +21,7 @@ import {
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
 import { successEmbed, errorEmbed } from '../../../utils/embeds.js';
 import { logger } from '../../../utils/logger.js';
-import { TitanBotError, ErrorTypes } from '../../../utils/errorHandler.js';
+import { RagnirBotError, ErrorTypes } from '../../../utils/errorHandler.js';
 import { safeDeferInteraction } from '../../../utils/interactionValidator.js';
 import {
     getApplicationSettings,
@@ -159,7 +159,7 @@ export default {
                 roles.length === 0;
 
             if (isCompletelyUnconfigured) {
-                throw new TitanBotError(
+                throw new RagnirBotError(
                     'Applications system not set up',
                     ErrorTypes.CONFIGURATION,
                     'The applications system has not been configured yet. Please run `/app-admin setup` to create your first application.',
@@ -187,9 +187,9 @@ export default {
             await showApplicationDashboard(interaction, defaultRole, settings, roles, guildId, client);
 
         } catch (error) {
-            if (error instanceof TitanBotError) throw error;
+            if (error instanceof RagnirBotError) throw error;
             logger.error('Unexpected error in app_dashboard:', error);
-            throw new TitanBotError(
+            throw new RagnirBotError(
                 `Applications dashboard failed: ${error.message}`,
                 ErrorTypes.UNKNOWN,
                 'Failed to open the applications dashboard.',
@@ -403,14 +403,14 @@ function setupCollectors(interaction, settings, roles, guildId, client, selected
                     break;
             }
         } catch (error) {
-            if (error instanceof TitanBotError) {
+            if (error instanceof RagnirBotError) {
                 logger.debug(`Applications config validation error: ${error.message}`);
             } else {
                 logger.error('Unexpected applications dashboard error:', error);
             }
 
             const errorMessage =
-                error instanceof TitanBotError
+                error instanceof RagnirBotError
                     ? error.userMessage || 'An error occurred while processing your selection.'
                     : 'An unexpected error occurred while updating the configuration.';
 

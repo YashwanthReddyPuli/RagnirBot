@@ -5,7 +5,7 @@
 
 import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } from 'discord.js';
 import { logger } from '../../utils/logger.js';
-import { handleInteractionError, TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
+import { handleInteractionError, RagnirBotError, ErrorTypes } from '../../utils/errorHandler.js';
 import { checkUserPermissions } from '../../utils/permissionGuard.js';
 import { addLevels, getLevelingConfig } from '../../services/leveling.js';
 import { createEmbed } from '../../utils/embeds.js';
@@ -69,7 +69,7 @@ export default {
       
       const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
       if (!member) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           `User ${targetUser.id} not found in this guild`,
           ErrorTypes.USER_INPUT,
           'The specified user is not in this server.'

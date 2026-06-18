@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, PermissionFlagsBits, PermissionsBitField, ChannelType, MessageFlags } from 'discord.js';
 import { errorEmbed, successEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
-import { TitanBotError, ErrorTypes, handleInteractionError } from '../../utils/errorHandler.js';
+import { RagnirBotError, ErrorTypes, handleInteractionError } from '../../utils/errorHandler.js';
 import { saveGiveaway } from '../../utils/giveaways.js';
 import { 
     parseDuration, 
@@ -52,7 +52,7 @@ export default {
         try {
             
             if (!interaction.inGuild()) {
-                throw new TitanBotError(
+                throw new RagnirBotError(
                     'Giveaway command used outside guild',
                     ErrorTypes.VALIDATION,
                     'This command can only be used in a server.',
@@ -62,7 +62,7 @@ export default {
 
             
             if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
-                throw new TitanBotError(
+                throw new RagnirBotError(
                     'User lacks ManageGuild permission',
                     ErrorTypes.PERMISSION,
                     "You need the 'Manage Server' permission to start a giveaway.",
@@ -85,7 +85,7 @@ export default {
 
             
             if (!targetChannel.isTextBased()) {
-                throw new TitanBotError(
+                throw new RagnirBotError(
                     'Target channel is not text-based',
                     ErrorTypes.VALIDATION,
                     'The channel must be a text channel.',

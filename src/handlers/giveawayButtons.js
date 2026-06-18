@@ -1,7 +1,7 @@
 import { MessageFlags, PermissionFlagsBits } from 'discord.js';
 import { errorEmbed, successEmbed } from '../utils/embeds.js';
 import { logger } from '../utils/logger.js';
-import { TitanBotError, ErrorTypes, handleInteractionError } from '../utils/errorHandler.js';
+import { RagnirBotError, ErrorTypes, handleInteractionError } from '../utils/errorHandler.js';
 import { 
     getGuildGiveaways, 
     saveGiveaway, 
@@ -45,7 +45,7 @@ export const giveawayJoinHandler = {
                 const giveaway = guildGiveaways.find(g => g.messageId === interaction.message.id);
 
                 if (!giveaway) {
-                    throw new TitanBotError(
+                    throw new RagnirBotError(
                         'Giveaway not found in database',
                         ErrorTypes.VALIDATION,
                         'This giveaway is no longer active.',
@@ -132,7 +132,7 @@ export const giveawayEndHandler = {
         try {
             
             if (!interaction.inGuild()) {
-                throw new TitanBotError(
+                throw new RagnirBotError(
                     'Button used outside guild',
                     ErrorTypes.VALIDATION,
                     'This button can only be used in a server.',
@@ -152,7 +152,7 @@ export const giveawayEndHandler = {
             const giveaway = guildGiveaways.find(g => g.messageId === interaction.message.id);
 
             if (!giveaway) {
-                throw new TitanBotError(
+                throw new RagnirBotError(
                     'Giveaway not found in database',
                     ErrorTypes.VALIDATION,
                     'This giveaway is no longer active.',
@@ -161,7 +161,7 @@ export const giveawayEndHandler = {
             }
 
             if (giveaway.ended || giveaway.isEnded || isGiveawayEnded(giveaway)) {
-                throw new TitanBotError(
+                throw new RagnirBotError(
                     'Giveaway already ended',
                     ErrorTypes.VALIDATION,
                     'This giveaway has already ended.',
@@ -258,7 +258,7 @@ export const giveawayRerollHandler = {
         try {
             
             if (!interaction.inGuild()) {
-                throw new TitanBotError(
+                throw new RagnirBotError(
                     'Button used outside guild',
                     ErrorTypes.VALIDATION,
                     'This button can only be used in a server.',
@@ -278,7 +278,7 @@ export const giveawayRerollHandler = {
             const giveaway = guildGiveaways.find(g => g.messageId === interaction.message.id);
 
             if (!giveaway) {
-                throw new TitanBotError(
+                throw new RagnirBotError(
                     'Giveaway not found in database',
                     ErrorTypes.VALIDATION,
                     'This giveaway is no longer active.',
@@ -287,7 +287,7 @@ export const giveawayRerollHandler = {
             }
 
             if (!giveaway.ended && !giveaway.isEnded) {
-                throw new TitanBotError(
+                throw new RagnirBotError(
                     'Giveaway still active',
                     ErrorTypes.VALIDATION,
                     'This giveaway has not ended yet. Please end it first.',
@@ -298,7 +298,7 @@ export const giveawayRerollHandler = {
             const participants = giveaway.participants || [];
             
             if (participants.length === 0) {
-                throw new TitanBotError(
+                throw new RagnirBotError(
                     'No participants to reroll',
                     ErrorTypes.VALIDATION,
                     'There are no entries to reroll from.',
@@ -386,7 +386,7 @@ export const giveawayViewHandler = {
     async execute(interaction, client) {
         try {
             if (!interaction.inGuild()) {
-                throw new TitanBotError(
+                throw new RagnirBotError(
                     'Button used outside guild',
                     ErrorTypes.VALIDATION,
                     'This button can only be used in a server.',
@@ -398,7 +398,7 @@ export const giveawayViewHandler = {
             const giveaway = guildGiveaways.find(g => g.messageId === interaction.message.id);
 
             if (!giveaway) {
-                throw new TitanBotError(
+                throw new RagnirBotError(
                     'Giveaway not found in database',
                     ErrorTypes.VALIDATION,
                     'This giveaway could not be found.',

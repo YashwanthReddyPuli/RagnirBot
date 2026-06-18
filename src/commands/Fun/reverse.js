@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { createEmbed, errorEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
-import { handleInteractionError, TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
+import { handleInteractionError, RagnirBotError, ErrorTypes } from '../../utils/errorHandler.js';
 import { sanitizeInput } from '../../utils/sanitization.js';
 
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -24,7 +24,7 @@ export default {
       
       
       if (!originalText || originalText.trim().length === 0) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           'Empty text provided to reverse command',
           ErrorTypes.USER_INPUT,
           'Please provide some text to reverse!'

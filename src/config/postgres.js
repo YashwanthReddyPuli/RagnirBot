@@ -49,13 +49,13 @@ const validatedTables = Object.fromEntries(
 
 
 export const pgConfig = {
-    url: process.env.POSTGRES_URL || 'postgresql://localhost:5432/titanbot',
+    url: process.env.POSTGRES_URL || 'postgresql://localhost:5432/ragnirbot',
     
     options: {
         
         host: process.env.POSTGRES_HOST || 'localhost',
         port: parseInt(process.env.POSTGRES_PORT) || 5432,
-        database: process.env.POSTGRES_DB || 'titanbot',
+        database: process.env.POSTGRES_DB || 'ragnirbot',
         user: process.env.POSTGRES_USER || 'postgres',
         password: (process.env.POSTGRES_PASSWORD || '').toString(),
         ssl: false,
@@ -67,7 +67,7 @@ export const pgConfig = {
         connectionTimeoutMillis: parseInt(process.env.POSTGRES_CONNECTION_TIMEOUT) || 10000,
         
         
-        application_name: 'titanbot',
+        application_name: 'ragnirbot',
         statement_timeout: process.env.NODE_ENV === 'production' ? 30000 : 0,
         keepalives: 1,
         keepalives_idle: 30,

@@ -20,7 +20,7 @@ import {
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
 import { successEmbed, errorEmbed } from '../../../utils/embeds.js';
 import { logger } from '../../../utils/logger.js';
-import { TitanBotError, ErrorTypes } from '../../../utils/errorHandler.js';
+import { RagnirBotError, ErrorTypes } from '../../../utils/errorHandler.js';
 import { getWelcomeConfig, saveWelcomeConfig } from '../../../utils/database.js';
 import { botHasPermission } from '../../../utils/permissionGuard.js';
 
@@ -158,7 +158,7 @@ export default {
             const cfg = await getWelcomeConfig(client, guildId);
 
             if (!cfg.channelId && !cfg.goodbyeChannelId) {
-                throw new TitanBotError(
+                throw new RagnirBotError(
                     'Greet system not configured',
                     ErrorTypes.CONFIGURATION,
                     'Neither Welcome nor Goodbye has been set up yet. Run `/welcome setup` or `/goodbye setup` first.',
@@ -210,14 +210,14 @@ export default {
                             break;
                     }
                 } catch (error) {
-                    if (error instanceof TitanBotError) {
+                    if (error instanceof RagnirBotError) {
                         logger.debug(`Greet config validation error: ${error.message}`);
                     } else {
                         logger.error('Unexpected greet dashboard error:', error);
                     }
 
                     const errorMessage =
-                        error instanceof TitanBotError
+                        error instanceof RagnirBotError
                             ? error.userMessage || 'An error occurred while processing your selection.'
                             : 'An unexpected error occurred while updating the configuration.';
 
@@ -328,9 +328,9 @@ export default {
                 }
             });
         } catch (error) {
-            if (error instanceof TitanBotError) throw error;
+            if (error instanceof RagnirBotError) throw error;
             logger.error('Unexpected error in greet_dashboard:', error);
-            throw new TitanBotError(
+            throw new RagnirBotError(
                 `Greet dashboard failed: ${error.message}`,
                 ErrorTypes.UNKNOWN,
                 'Failed to open the greet dashboard.',

@@ -5,7 +5,7 @@
 
 import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { logger } from '../../utils/logger.js';
-import { handleInteractionError, TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
+import { handleInteractionError, RagnirBotError, ErrorTypes } from '../../utils/errorHandler.js';
 import { getUserLevelData, getLevelingConfig, getXpForLevel } from '../../services/leveling.js';
 
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -51,7 +51,7 @@ export default {
         .catch(() => null);
 
       if (!member) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           `User ${targetUser.id} not found in guild`,
           ErrorTypes.USER_INPUT,
           'Could not find the specified user in this server.'

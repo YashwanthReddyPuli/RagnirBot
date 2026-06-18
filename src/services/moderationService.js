@@ -1,6 +1,6 @@
 import { PermissionFlagsBits } from 'discord.js';
 import { logger } from '../utils/logger.js';
-import { TitanBotError, ErrorTypes } from '../utils/errorHandler.js';
+import { RagnirBotError, ErrorTypes } from '../utils/errorHandler.js';
 import { logModerationAction } from '../utils/moderation.js';
 
 
@@ -78,7 +78,7 @@ export class ModerationService {
   }) {
     try {
       if (!guild || !user || !moderator) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           'Missing required parameters',
           ErrorTypes.VALIDATION,
           'Guild, user, and moderator are required'
@@ -97,12 +97,12 @@ export class ModerationService {
       if (targetMember) {
         const botCheck = this.validateBotHierarchy(guild.client, targetMember, 'ban');
         if (!botCheck.valid) {
-          throw new TitanBotError(botCheck.error, ErrorTypes.PERMISSION, botCheck.error);
+          throw new RagnirBotError(botCheck.error, ErrorTypes.PERMISSION, botCheck.error);
         }
 
         const modCheck = this.validateHierarchy(moderator, targetMember, 'ban');
         if (!modCheck.valid) {
-          throw new TitanBotError(modCheck.error, ErrorTypes.PERMISSION, modCheck.error);
+          throw new RagnirBotError(modCheck.error, ErrorTypes.PERMISSION, modCheck.error);
         }
       } else {
         // If target is not in guild, we can't check their roles easily.
@@ -114,7 +114,7 @@ export class ModerationService {
         ]);
 
         if (!isOwner && !hasHighPerms) {
-            throw new TitanBotError(
+            throw new RagnirBotError(
                 'You do not have sufficient permissions to ban users who are not in the server.',
                 ErrorTypes.PERMISSION,
                 'You need "Manage Server" or "Administrator" permissions to ban users not currently in the guild.'
@@ -171,7 +171,7 @@ export class ModerationService {
   }) {
     try {
       if (!guild || !member || !moderator) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           'Missing required parameters',
           ErrorTypes.VALIDATION,
           'Guild, member, and moderator are required'
@@ -181,17 +181,17 @@ export class ModerationService {
       
       const botCheck = this.validateBotHierarchy(guild.client, member, 'kick');
       if (!botCheck.valid) {
-        throw new TitanBotError(botCheck.error, ErrorTypes.PERMISSION, botCheck.error);
+        throw new RagnirBotError(botCheck.error, ErrorTypes.PERMISSION, botCheck.error);
       }
 
       const modCheck = this.validateHierarchy(moderator, member, 'kick');
       if (!modCheck.valid) {
-        throw new TitanBotError(modCheck.error, ErrorTypes.PERMISSION, modCheck.error);
+        throw new RagnirBotError(modCheck.error, ErrorTypes.PERMISSION, modCheck.error);
       }
 
       
       if (!member.kickable) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           'Cannot kick member',
           ErrorTypes.PERMISSION,
           'I do not have permission to kick this member'
@@ -245,7 +245,7 @@ export class ModerationService {
   }) {
     try {
       if (!guild || !member || !moderator || !durationMs) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           'Missing required parameters',
           ErrorTypes.VALIDATION,
           'Guild, member, moderator, and duration are required'
@@ -255,17 +255,17 @@ export class ModerationService {
       
       const botCheck = this.validateBotHierarchy(guild.client, member, 'timeout');
       if (!botCheck.valid) {
-        throw new TitanBotError(botCheck.error, ErrorTypes.PERMISSION, botCheck.error);
+        throw new RagnirBotError(botCheck.error, ErrorTypes.PERMISSION, botCheck.error);
       }
 
       const modCheck = this.validateHierarchy(moderator, member, 'timeout');
       if (!modCheck.valid) {
-        throw new TitanBotError(modCheck.error, ErrorTypes.PERMISSION, modCheck.error);
+        throw new RagnirBotError(modCheck.error, ErrorTypes.PERMISSION, modCheck.error);
       }
 
       
       if (!member.moderatable) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           'Cannot timeout member',
           ErrorTypes.PERMISSION,
           'I cannot timeout this member'
@@ -322,7 +322,7 @@ export class ModerationService {
   }) {
     try {
       if (!guild || !member || !moderator) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           'Missing required parameters',
           ErrorTypes.VALIDATION,
           'Guild, member, and moderator are required'
@@ -331,7 +331,7 @@ export class ModerationService {
 
       
       if (!member.moderatable) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           'Cannot modify member',
           ErrorTypes.PERMISSION,
           'I cannot modify this member'
@@ -340,7 +340,7 @@ export class ModerationService {
 
       
       if (!member.isCommunicationDisabled()) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           'User not timed out',
           ErrorTypes.VALIDATION,
           `${member.user.tag} is not currently timed out`
@@ -391,7 +391,7 @@ export class ModerationService {
   }) {
     try {
       if (!guild || !user || !moderator) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           'Missing required parameters',
           ErrorTypes.VALIDATION,
           'Guild, user, and moderator are required'
@@ -403,7 +403,7 @@ export class ModerationService {
       const banInfo = bans.get(user.id);
 
       if (!banInfo) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           'User not banned',
           ErrorTypes.VALIDATION,
           `${user.tag} is not currently banned from this server`

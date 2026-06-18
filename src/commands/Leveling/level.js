@@ -3,7 +3,7 @@ import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } f
 import { createEmbed, errorEmbed } from '../../utils/embeds.js';
 import { getLevelingConfig, saveLevelingConfig } from '../../services/leveling.js';
 import { botHasPermission } from '../../utils/permissionGuard.js';
-import { TitanBotError, ErrorTypes, handleInteractionError } from '../../utils/errorHandler.js';
+import { RagnirBotError, ErrorTypes, handleInteractionError } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { logger } from '../../utils/logger.js';
 import levelDashboard from './modules/level_dashboard.js';
@@ -111,7 +111,7 @@ export default {
                 }
 
                 if (!botHasPermission(channel, ['SendMessages', 'EmbedLinks'])) {
-                    throw new TitanBotError(
+                    throw new RagnirBotError(
                         'Bot missing permissions in the specified channel',
                         ErrorTypes.PERMISSION,
                         `I need **SendMessages** and **EmbedLinks** permissions in ${channel} to send level-up notifications.`,

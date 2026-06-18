@@ -20,7 +20,7 @@ import {
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { successEmbed, errorEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
-import { TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
+import { RagnirBotError, ErrorTypes } from '../../utils/errorHandler.js';
 import { getColor } from '../../config/bot.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -460,7 +460,7 @@ async function handleSetFooter(selectInteraction, rootInteraction, state) {
                     .setValue(state.footer?.text || '')
                     .setMaxLength(2048)
                     .setRequired(false)
-                    .setPlaceholder('Built with TitanBot'),
+                    .setPlaceholder('Built with RagnirBot'),
             ),
             new ActionRowBuilder().addComponents(
                 new TextInputBuilder()
@@ -1167,7 +1167,7 @@ export default {
                 } catch (error) {
                     logger.error('Error in embedbuilder collector:', error);
                     const msg =
-                        error instanceof TitanBotError
+                        error instanceof RagnirBotError
                             ? error.userMessage || 'An error occurred.'
                             : 'An unexpected error occurred.';
                     if (!ci.replied && !ci.deferred) await ci.deferUpdate().catch(() => {});
@@ -1186,9 +1186,9 @@ export default {
                 }
             });
         } catch (error) {
-            if (error instanceof TitanBotError) throw error;
+            if (error instanceof RagnirBotError) throw error;
             logger.error('Unexpected error in embedbuilder:', error);
-            throw new TitanBotError(
+            throw new RagnirBotError(
                 `embedbuilder failed: ${error.message}`,
                 ErrorTypes.UNKNOWN,
                 'Failed to open the embed builder.',

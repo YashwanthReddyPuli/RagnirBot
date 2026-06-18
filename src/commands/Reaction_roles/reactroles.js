@@ -2,7 +2,7 @@ import { getColor } from '../../config/bot.js';
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, RoleSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ButtonBuilder, ButtonStyle, MessageFlags, ComponentType, EmbedBuilder, LabelBuilder, CheckboxBuilder, TextDisplayBuilder } from 'discord.js';
 import { createEmbed, errorEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
-import { handleInteractionError, createError, TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
+import { handleInteractionError, createError, RagnirBotError, ErrorTypes } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { createReactionRoleMessage, hasDangerousPermissions, getAllReactionRoleMessages, deleteReactionRoleMessage } from '../../services/reactionRoleService.js';
 import { logEvent, EVENT_TYPES } from '../../services/loggingService.js';
@@ -476,7 +476,7 @@ async function handleDashboard(interaction, selectedPanelId) {
         } catch (error) {
             logger.error('Error in reactroles dashboard collector:', error);
             const msg =
-                error instanceof TitanBotError
+                error instanceof RagnirBotError
                     ? error.userMessage || 'An error occurred.'
                     : 'An unexpected error occurred.';
             if (!ci.replied && !ci.deferred) await ci.deferUpdate().catch(() => {});
@@ -496,7 +496,7 @@ async function handleDashboard(interaction, selectedPanelId) {
         } catch (error) {
             logger.error('Error in reactroles button collector:', error);
             const msg =
-                error instanceof TitanBotError
+                error instanceof RagnirBotError
                     ? error.userMessage || 'An error occurred.'
                     : 'An unexpected error occurred.';
             if (!btnInteraction.replied && !btnInteraction.deferred) await btnInteraction.deferUpdate().catch(() => {});

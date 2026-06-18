@@ -3,7 +3,7 @@ import { createEmbed, errorEmbed, successEmbed, infoEmbed, warningEmbed } from '
 import { logModerationAction } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
+import { RagnirBotError, ErrorTypes } from '../../utils/errorHandler.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -25,7 +25,7 @@ export default {
     try {
       
       if (!interaction.member.permissions.has(PermissionFlagsBits.KickMembers)) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           "User lacks permission",
           ErrorTypes.PERMISSION,
           "You do not have permission to kick members."
@@ -38,7 +38,7 @@ export default {
 
       
       if (targetUser.id === interaction.user.id) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           "Cannot kick self",
           ErrorTypes.VALIDATION,
           "You cannot kick yourself."
@@ -47,7 +47,7 @@ export default {
 
       
       if (targetUser.id === client.user.id) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           "Cannot kick bot",
           ErrorTypes.VALIDATION,
           "You cannot kick the bot."
@@ -56,7 +56,7 @@ export default {
 
       
       if (!member) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           "Target not found",
           ErrorTypes.USER_INPUT,
           "The target user is not currently in this server.",
@@ -66,7 +66,7 @@ export default {
 
       
       if (interaction.member.roles.highest.position <= member.roles.highest.position) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           "Cannot kick user",
           ErrorTypes.PERMISSION,
           "You cannot kick a user with an equal or higher role than you."
@@ -75,7 +75,7 @@ export default {
 
       
       if (!member.kickable) {
-        throw new TitanBotError(
+        throw new RagnirBotError(
           "Bot cannot kick",
           ErrorTypes.PERMISSION,
           "I cannot kick this user. Please check my role position relative to the target user."

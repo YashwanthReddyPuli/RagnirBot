@@ -16,7 +16,7 @@ import {
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
 import { successEmbed, errorEmbed } from '../../../utils/embeds.js';
 import { logger } from '../../../utils/logger.js';
-import { TitanBotError, ErrorTypes } from '../../../utils/errorHandler.js';
+import { RagnirBotError, ErrorTypes } from '../../../utils/errorHandler.js';
 import { getGuildConfig, setGuildConfig } from '../../../services/guildConfig.js';
 import { getWelcomeConfig } from '../../../utils/database.js';
 import { validateAutoVerifyCriteria } from '../../../services/verificationService.js';
@@ -229,14 +229,14 @@ export default {
                             break;
                     }
                 } catch (error) {
-                    if (error instanceof TitanBotError) {
+                    if (error instanceof RagnirBotError) {
                         logger.debug(`Autoverify config validation error: ${error.message}`);
                     } else {
                         logger.error('Unexpected autoverify dashboard error:', error);
                     }
 
                     const errorMessage =
-                        error instanceof TitanBotError
+                        error instanceof RagnirBotError
                             ? error.userMessage || 'An error occurred while processing your selection.'
                             : 'An unexpected error occurred while updating the configuration.';
 
@@ -307,9 +307,9 @@ export default {
                 }
             });
         } catch (error) {
-            if (error instanceof TitanBotError) throw error;
+            if (error instanceof RagnirBotError) throw error;
             logger.error('Unexpected error in autoverify_dashboard:', error);
-            throw new TitanBotError(
+            throw new RagnirBotError(
                 `Auto-verification dashboard failed: ${error.message}`,
                 ErrorTypes.UNKNOWN,
                 'Failed to open the auto-verification dashboard.',

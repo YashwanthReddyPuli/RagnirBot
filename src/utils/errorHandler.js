@@ -1,7 +1,7 @@
 /**
  * Centralized Error Handling System
  * 
- * This module provides structured error handling for the TitanBot application.
+ * This module provides structured error handling for the RagnirBot application.
  * 
  * PHILOSOPHY:
  * - All errors are categorized by type for consistent handling
@@ -10,7 +10,7 @@
  * - Errors contain context information for debugging
  * 
  * USAGE:
- * - Throw TitanBotError for application-specific errors
+ * - Throw RagnirBotError for application-specific errors
  * - Use handleInteractionError for interaction errors
  * - Errors are automatically formatted and sent to user
  * 
@@ -49,10 +49,10 @@ export const ErrorTypes = {
 
 
 
-export class TitanBotError extends Error {
+export class RagnirBotError extends Error {
     constructor(message, type = ErrorTypes.UNKNOWN, userMessage = null, context = {}) {
         super(message);
-        this.name = 'TitanBotError';
+        this.name = 'RagnirBotError';
         this.type = type;
         this.userMessage = userMessage;
         this.context = context;
@@ -65,7 +65,7 @@ export class TitanBotError extends Error {
 
 
 export function categorizeError(error) {
-    if (error instanceof TitanBotError) {
+    if (error instanceof RagnirBotError) {
         return error.type;
     }
 
@@ -369,12 +369,12 @@ export function createError(message, type = ErrorTypes.UNKNOWN, userMessage = nu
         errorCode: context?.errorCode || getDefaultErrorCodeByType(type)
     };
 
-    return new TitanBotError(message, type, userMessage, normalizedContext);
+    return new RagnirBotError(message, type, userMessage, normalizedContext);
 }
 
 export default {
     ErrorTypes,
-    TitanBotError,
+    RagnirBotError,
     categorizeError,
     getUserMessage,
     handleInteractionError,

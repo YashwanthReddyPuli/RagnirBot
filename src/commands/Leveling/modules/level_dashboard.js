@@ -19,7 +19,7 @@ import {
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
 import { successEmbed, errorEmbed } from '../../../utils/embeds.js';
 import { logger } from '../../../utils/logger.js';
-import { TitanBotError, ErrorTypes } from '../../../utils/errorHandler.js';
+import { RagnirBotError, ErrorTypes } from '../../../utils/errorHandler.js';
 import { getLevelingConfig, saveLevelingConfig } from '../../../services/leveling.js';
 import { botHasPermission } from '../../../utils/permissionGuard.js';
 
@@ -153,7 +153,7 @@ export default {
             const cfg = await getLevelingConfig(client, guildId);
 
             if (!cfg.configured) {
-                throw new TitanBotError(
+                throw new RagnirBotError(
                     'Leveling system not configured',
                     ErrorTypes.CONFIGURATION,
                     'The leveling system has not been set up yet. Run `/level setup` first to configure it.',
@@ -205,14 +205,14 @@ export default {
                             break;
                     }
                 } catch (error) {
-                    if (error instanceof TitanBotError) {
+                    if (error instanceof RagnirBotError) {
                         logger.debug(`Leveling config validation error: ${error.message}`);
                     } else {
                         logger.error('Unexpected leveling dashboard error:', error);
                     }
 
                     const errorMessage =
-                        error instanceof TitanBotError
+                        error instanceof RagnirBotError
                             ? error.userMessage || 'An error occurred while processing your selection.'
                             : 'An unexpected error occurred while updating the configuration.';
 
@@ -307,9 +307,9 @@ export default {
                 }
             });
         } catch (error) {
-            if (error instanceof TitanBotError) throw error;
+            if (error instanceof RagnirBotError) throw error;
             logger.error('Unexpected error in level_dashboard:', error);
-            throw new TitanBotError(
+            throw new RagnirBotError(
                 `Level dashboard failed: ${error.message}`,
                 ErrorTypes.UNKNOWN,
                 'Failed to open the leveling dashboard.',
