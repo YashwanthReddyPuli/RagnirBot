@@ -58,8 +58,8 @@ class RagnirBot extends Client {
         logger.warn('║ ⚠️  DATABASE RUNNING IN DEGRADED MODE                 ║');
         logger.warn('║                                                       ║');
         logger.warn('║ Connection: In-Memory Storage (PostgreSQL unavailable)║');
-        logger.warn('║ Data Persistence: DISABLED - data lost on restart    ║');
-        logger.warn('║ Action Required: Fix PostgreSQL and restart bot      ║');
+        logger.warn('║ Data Persistence: DISABLED - data lost on restart     ║');
+        logger.warn('║ Action Required: Fix PostgreSQL and restart bot       ║');
         logger.warn('╚═══════════════════════════════════════════════════════╝');
         logger.warn('');
       } else {
@@ -156,7 +156,7 @@ class RagnirBot extends Client {
         database: {
           connected: dbStatus.connectionType !== 'none',
           degraded: dbStatus.isDegraded,
-          type: dbStatus.connectionType
+          type: dbStatus.connectionType 
         }
       };
       res.status(200).json(status);

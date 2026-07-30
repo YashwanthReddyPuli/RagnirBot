@@ -405,6 +405,16 @@ class PostgreSQLDatabase {
                 value JSONB NOT NULL,
                 expires_at TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )`,
+            
+            `CREATE TABLE IF NOT EXISTS ${pgConfig.tables.guild_backups} (
+                id VARCHAR(50) PRIMARY KEY,
+                guild_id VARCHAR(20) NOT NULL,
+                backup_name VARCHAR(100),
+                data JSONB NOT NULL,
+                created_by VARCHAR(20) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (guild_id) REFERENCES ${pgConfig.tables.guilds}(id) ON DELETE CASCADE
             )`
         ];
 
@@ -444,7 +454,8 @@ class PostgreSQLDatabase {
             `CREATE INDEX IF NOT EXISTS idx_verification_audit_user_id ON ${pgConfig.tables.verification_audit}(user_id)`,
             `CREATE INDEX IF NOT EXISTS idx_verification_audit_created_at ON ${pgConfig.tables.verification_audit}(created_at)`,
             `CREATE INDEX IF NOT EXISTS idx_temp_data_expires_at ON ${pgConfig.tables.temp_data}(expires_at)`,
-            `CREATE INDEX IF NOT EXISTS idx_cache_data_expires_at ON ${pgConfig.tables.cache_data}(expires_at)`
+            `CREATE INDEX IF NOT EXISTS idx_cache_data_expires_at ON ${pgConfig.tables.cache_data}(expires_at)`,
+            `CREATE INDEX IF NOT EXISTS idx_guild_backups_guild_id ON ${pgConfig.tables.guild_backups}(guild_id)`
         ];
 
         for (const index of indexes) {
