@@ -124,7 +124,14 @@ const AutoModConfigSchema = z.object({
 
 export const GuildConfigSchema = z
   .object({
-    prefix: z.string().optional(),
+    prefix: z.string().default(';'),
+    noPrefixUsers: z.array(z.string()).default([]),
+    lockdownActive: z.boolean().default(false),
+    vanity: z.object({
+      enabled: z.boolean().default(false),
+      text: z.string().default(''),
+      roleId: z.string().nullable().default(null)
+    }).default({ enabled: false, text: '', roleId: null }),
     modRole: z.string().nullable().optional(),
     adminRole: z.string().nullable().optional(),
     logChannelId: z.string().nullable().optional(),

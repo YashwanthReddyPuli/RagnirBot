@@ -9,6 +9,116 @@ import { getLevelingConfig, getUserLevelData } from '../services/leveling.js';
 import { addXp } from '../services/xpSystem.js';
 import { checkRateLimit } from '../utils/rateLimiter.js';
 import { AutoModService } from '../services/autoModService.js';
+import { getGuildConfig } from '../services/guildConfig.js';
+import { InteractionHelper } from '../utils/interactionHelper.js';
+
+class MockInteraction {
+  constructor(message, commandName, args) {
+    this.message = message;
+    this.id = message.id;
+    this.guild = message.guild;
+    this.guildId = message.guild.id;
+    this.channel = message.channel;
+    this.user = message.author;
+    this.member = message.member;
+    this.commandName = commandName;
+    this.args = args;
+    this.replied = false;
+    this.deferred = false;
+
+    this.options = {
+      getUser: (name) => {
+        const mention = message.mentions.users.first();
+        if (mention) return mention;
+        const idArg = args[0];
+        if (idArg && /^\d+$/.test(idArg)) {
+          return message.client.users.cache.get(idArg) || null;
+        }
+        return null;
+      },
+      getMember: (name) => {
+        const mention = message.mentions.members.first();
+        if (mention) return mention;
+        const idArg = args[0];
+        if (idArg && /^\d+$/.test(idArg)) {
+          return message.guild.members.cache.get(idArg) || null;
+        }
+        return null;
+      },
+      getRole: (name) => {
+        const mention = message.mentions.roles.first();
+        if (mention) return mention;
+        const idArg = args[0];
+        if (idArg && /^\d+$/.test(idArg)) {
+          return message.guild.roles.cache.get(idArg) || null;
+        }
+        return null;
+      },
+      getChannel: (name) => {
+        const mention = message.mentions.channels.first();
+        if (mention) return mention;
+        const idArg = args[0];
+        if (idArg && /^\d+$/.test(idArg)) {
+          return message.guild.channels.cache.get(idArg) || null;
+        }
+        return null;
+      },
+      getString: (name) => {
+        const hasTargetMention = message.mentions.users.size > 0 || message.mentions.roles.size > 0 || message.mentions.channels.size > 0 || (args[0] && /^\d+$/.test(args[0]));
+        if (hasTargetMention) {
+          return args.slice(1).join(' ') || null;
+        }
+        return args.join(' ') || null;
+      },
+      getInteger: (name) => {
+        const arg = args.find(a => /^\d+$/.test(a));
+        return arg ? parseInt(arg, 10) : null;
+      },
+      getNumber: (name) => {
+        const arg = args.find(a => /^\d+(\.\d+)?$/.test(a));
+        return arg ? parseFloat(arg) : null;
+      },
+      getBoolean: (name) => {
+        const val = args.join(' ').toLowerCase();
+        if (val.includes('true') || val.includes('yes') || val.includes('enable')) return true;
+        if (val.includes('false') || val.includes('no') || val.includes('disable')) return false;
+        return null;
+      }
+    };
+  }
+
+  async reply(options) {
+    if (this.replied) {
+      return await this.followUp(options);
+    }
+    this.replied = true;
+    let payload = typeof options === 'string' ? { content: options } : options;
+    if (payload.flags) delete payload.flags;
+    this.replyMessage = await this.channel.send(payload);
+    return this.replyMessage;
+  }
+
+  async editReply(options) {
+    let payload = typeof options === 'string' ? { content: options } : options;
+    if (payload.flags) delete payload.flags;
+    if (this.replyMessage) {
+      return await this.replyMessage.edit(payload);
+    }
+    return await this.reply(payload);
+  }
+
+  async deferReply(options) {
+    this.deferred = true;
+    await this.channel.sendTyping().catch(() => null);
+    return true;
+  }
+
+  async followUp(options) {
+    let payload = typeof options === 'string' ? { content: options } : options;
+    if (payload.flags) delete payload.flags;
+    return await this.channel.send(payload);
+  }
+}
 
 const MESSAGE_XP_RATE_LIMIT_ATTEMPTS = 12;
 const MESSAGE_XP_RATE_LIMIT_WINDOW_MS = 10000;
@@ -17,11 +127,51 @@ export default {
   name: Events.MessageCreate,
   async execute(message, client) {
     try {
-      
       if (message.author.bot || !message.guild) return;
 
       const isAutomodded = await AutoModService.processMessage(message, client);
       if (isAutomodded) return;
+
+      // Prefix command handling
+      const config = await getGuildConfig(client, message.guild.id);
+      const prefix = config?.prefix || ';';
+      const noPrefixUsers = config?.noPrefixUsers || [];
+      const hasNoPrefix = noPrefixUsers.includes(message.author.id);
+
+      let isCommand = false;
+      let commandName = '';
+      let args = [];
+
+      if (message.content.startsWith(prefix)) {
+        isCommand = true;
+        const content = message.content.slice(prefix.length).trim();
+        const parts = content.split(/\s+/);
+        commandName = parts[0].toLowerCase();
+        args = parts.slice(1);
+      } else if (hasNoPrefix) {
+        const parts = message.content.trim().split(/\s+/);
+        const possibleCmd = parts[0].toLowerCase();
+        if (client.commands.has(possibleCmd)) {
+          isCommand = true;
+          commandName = possibleCmd;
+          args = parts.slice(1);
+        }
+      }
+
+      if (isCommand && commandName) {
+        const command = client.commands.get(commandName);
+        if (command) {
+          const mockInteraction = new MockInteraction(message, commandName, args);
+          InteractionHelper.patchInteractionResponses(mockInteraction);
+          try {
+            await command.execute(mockInteraction, config, client);
+          } catch (cmdErr) {
+            logger.error(`Error executing prefix command ${commandName}:`, cmdErr);
+            await message.reply(`❌ **Error executing command:** ${cmdErr.message}`).catch(() => null);
+          }
+          return; // Stop execution: don't award XP for command usage
+        }
+      }
 
       await handleLeveling(message, client);
     } catch (error) {

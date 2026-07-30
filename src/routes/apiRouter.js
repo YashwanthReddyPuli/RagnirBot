@@ -12,6 +12,7 @@ import {
     deleteReactionRoleMessage 
 } from '../services/reactionRoleService.js';
 import { logger } from '../utils/logger.js';
+import { LockdownService } from '../services/lockdownService.js';
 
 export default (client) => {
     const router = express.Router();
@@ -39,17 +40,18 @@ export default (client) => {
         if (!guildId) {
             return res.status(400).json({ error: 'Bad Request: Missing guild ID' });
         }
-
+ 
         const userAdminGuilds = req.user.adminGuilds || [];
-        if (!userAdminGuilds.includes(guildId)) {
+        const adminGuildIds = userAdminGuilds.map(g => typeof g === 'object' ? g.id : g);
+        if (!adminGuildIds.includes(guildId)) {
             return res.status(403).json({ error: 'Forbidden: You do not have administrator rights on this server' });
         }
         
         next();
     };
-
+ 
     // --- ENDPOINTS ---
-
+ 
     // Get Auth Config
     router.get('/auth/config', (req, res) => {
         res.json({
@@ -57,24 +59,24 @@ export default (client) => {
             redirectUri: process.env.REDIRECT_URI
         });
     });
-
+ 
     // OAuth2 Login / Code Exchange
     router.post('/auth/login', async (req, res) => {
         const { code } = req.body;
         if (!code) {
             return res.status(400).json({ error: 'Missing OAuth authorization code' });
         }
-
+ 
         try {
             const clientId = process.env.CLIENT_ID;
             const clientSecret = process.env.CLIENT_SECRET;
             const redirectUri = process.env.REDIRECT_URI;
-
+ 
             if (!clientId || !clientSecret || !redirectUri) {
                 logger.error('OAuth credentials missing from environment variables.');
                 return res.status(500).json({ error: 'OAuth setup incomplete on bot server.' });
             }
-
+ 
             // Exchange OAuth2 code for access token
             const tokenResponse = await axios.post('https://discord.com/api/v10/oauth2/token', new URLSearchParams({
                 client_id: clientId,
@@ -85,25 +87,29 @@ export default (client) => {
             }).toString(), {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
             });
-
+ 
             const accessToken = tokenResponse.data.access_token;
-
+ 
             // Fetch user profile
             const userResponse = await axios.get('https://discord.com/api/v10/users/@me', {
                 headers: { Authorization: `Bearer ${accessToken}` }
             });
-
+ 
             // Fetch user guilds
             const guildsResponse = await axios.get('https://discord.com/api/v10/users/@me/guilds', {
                 headers: { Authorization: `Bearer ${accessToken}` }
             });
-
+ 
             // Filter guilds for Administrator permission (0x8 / 1 << 3)
             const ADMIN_PERMISSION = 0x8;
             const adminGuilds = guildsResponse.data
                 .filter(g => (BigInt(g.permissions) & BigInt(ADMIN_PERMISSION)) === BigInt(ADMIN_PERMISSION))
-                .map(g => g.id);
-
+                .map(g => ({
+                    id: g.id,
+                    name: g.name,
+                    icon: g.icon
+                }));
+ 
             // Generate user session JWT
             const token = jwt.sign({
                 id: userResponse.data.id,
@@ -112,7 +118,7 @@ export default (client) => {
                 avatar: userResponse.data.avatar,
                 adminGuilds
             }, process.env.DASHBOARD_SECRET || 'ragnir_jwt_fallback_secret', { expiresIn: '7d' });
-
+ 
             res.json({
                 token,
                 user: {
@@ -126,20 +132,27 @@ export default (client) => {
             res.status(500).json({ error: 'OAuth login code exchange failed' });
         }
     });
-
+ 
     // List all guilds where user is administrator
     router.get('/user/guilds', authMiddleware, async (req, res) => {
         try {
             const adminGuilds = req.user.adminGuilds || [];
-            const guilds = adminGuilds.map(guildId => {
+            const guilds = adminGuilds.map(g => {
+                const guildId = typeof g === 'object' ? g.id : g;
+                const guildName = typeof g === 'object' ? g.name : 'Unknown Server';
+                const guildIcon = typeof g === 'object' ? g.icon : null;
                 const guildObj = client.guilds.cache.get(guildId);
+                
                 return {
                     id: guildId,
-                    name: guildObj ? guildObj.name : 'Unknown Server',
-                    icon: guildObj ? guildObj.icon : null,
+                    name: guildObj ? guildObj.name : guildName,
+                    icon: guildObj ? guildObj.icon : guildIcon,
                     botPresent: !!guildObj
                 };
             });
+            
+            // Sort: Bot Connected first
+            guilds.sort((a, b) => (b.botPresent ? 1 : 0) - (a.botPresent ? 1 : 0));
             
             res.json(guilds);
         } catch (error) {
@@ -416,6 +429,31 @@ export default (client) => {
         } catch (error) {
             logger.error(`Error deleting reaction roles ${req.params.messageId}:`, error.message);
             res.status(500).json({ error: 'Failed to delete reaction roles' });
+        }
+    // Toggle emergency lockdown
+    router.post('/guilds/:guildId/lockdown', authMiddleware, adminGuildMiddleware, async (req, res) => {
+        try {
+            const guild = client.guilds.cache.get(req.params.guildId);
+            if (!guild) {
+                return res.status(404).json({ error: 'Bot is not present in this guild' });
+            }
+
+            const { active } = req.body;
+            let result;
+            if (active) {
+                result = await LockdownService.enableLockdown(guild, client);
+            } else {
+                result = await LockdownService.disableLockdown(guild, client);
+            }
+
+            if (!result.success) {
+                return res.status(500).json({ error: result.error });
+            }
+
+            res.json({ success: true, active });
+        } catch (error) {
+            logger.error(`Error toggling lockdown for guild ${req.params.guildId}:`, error.message);
+            res.status(500).json({ error: 'Failed to toggle lockdown' });
         }
     });
 

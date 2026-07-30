@@ -33,6 +33,40 @@ export default {
         
         const config = await getGuildConfig(member.client, guild.id);
         
+        // Invite tracking logic
+        let usedInvite = null;
+        let inviter = null;
+        let inviteCode = 'unknown';
+        let inviteUses = 0;
+        
+        try {
+            const cachedInvites = member.client.invites?.get(guild.id);
+            const currentInvites = await guild.invites.fetch().catch(() => null);
+            
+            if (cachedInvites && currentInvites) {
+                for (const [code, invite] of currentInvites) {
+                    const cachedUses = cachedInvites.get(code);
+                    if (cachedUses !== undefined && invite.uses > cachedUses) {
+                        usedInvite = invite;
+                        break;
+                    }
+                }
+                
+                // Update cache
+                member.client.invites.set(guild.id, new Map(currentInvites.map(invite => [invite.code, invite.uses || 0])));
+            } else if (currentInvites) {
+                member.client.invites.set(guild.id, new Map(currentInvites.map(invite => [invite.code, invite.uses || 0])));
+            }
+            
+            if (usedInvite) {
+                inviter = usedInvite.inviter;
+                inviteCode = usedInvite.code;
+                inviteUses = usedInvite.uses;
+            }
+        } catch (inviteErr) {
+            logger.warn(`Failed to track invite in guildMemberAdd: ${inviteErr.message}`);
+        }
+        
         const welcomeConfig = await getWelcomeConfig(member.client, guild.id);
         
         const welcomeChannelId = welcomeConfig?.channelId;
@@ -46,7 +80,7 @@ export default {
                     return;
                 }
 
-                const formatData = { user, guild, member };
+                const formatData = { user, guild, member, inviter, inviteCode, inviteUses };
                 const welcomeMessage = formatWelcomeMessage(
                     welcomeConfig.welcomeMessage || welcomeConfig.welcomeEmbed?.description || 'Welcome {user} to {server}!',
                     formatData

@@ -61,6 +61,10 @@ export default function DashboardPanel({
   const [newWhitelistRole, setNewWhitelistRole] = useState('');
   const [antiNukeCategoryTab, setAntiNukeCategoryTab] = useState('channels');
 
+  // Lockdown and Prefix inputs
+  const [lockdownActive, setLockdownActive] = useState(config?.lockdownActive || false);
+  const [newNoPrefixUserId, setNewNoPrefixUserId] = useState('');
+
   // Fetch channels list
   useEffect(() => {
     fetch(`/api/guilds/${guild.id}/channels`, {
@@ -76,6 +80,7 @@ export default function DashboardPanel({
   // Sync props to state
   useEffect(() => {
     setLocalConfig(config);
+    setLockdownActive(config?.lockdownActive || false);
   }, [config]);
 
   useEffect(() => {
@@ -334,6 +339,62 @@ export default function DashboardPanel({
       }
     })
     .catch(() => triggerAlert('error', 'Failed to delete warning case.'));
+  };
+
+  const handleToggleLockdown = () => {
+    const nextState = !lockdownActive;
+    fetch(`/api/guilds/${guild.id}/lockdown`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ active: nextState })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        setLockdownActive(nextState);
+        triggerAlert('success', nextState ? '🚨 EMERGENCY LOCKDOWN ACTIVE: Server channels frozen!' : '🔓 Lockdown lifted: Server channels unfrozen.');
+      } else {
+        triggerAlert('error', `Failed to toggle lockdown: ${data.error}`);
+      }
+    })
+    .catch(() => triggerAlert('error', 'Error communicating with lockdown engine.'));
+  };
+
+  const handleAddNoPrefixUser = (userId) => {
+    if (!userId || !/^\d+$/.test(userId)) {
+      triggerAlert('error', 'Please enter a valid numeric User ID.');
+      return;
+    }
+    const currentUsers = [...(localConfig.noPrefixUsers || [])];
+    if (currentUsers.includes(userId)) {
+      triggerAlert('error', 'User ID is already whitelisted.');
+      return;
+    }
+    const updatedUsers = [...currentUsers, userId];
+    setLocalConfig({ ...localConfig, noPrefixUsers: updatedUsers });
+    setNewNoPrefixUserId('');
+    triggerAlert('success', 'User whitelisted for No Prefix (save to apply).');
+  };
+
+  const handleRemoveNoPrefixUser = (userId) => {
+    const currentUsers = [...(localConfig.noPrefixUsers || [])];
+    const filteredUsers = currentUsers.filter(id => id !== userId);
+    setLocalConfig({ ...localConfig, noPrefixUsers: filteredUsers });
+    triggerAlert('success', 'User removed from No Prefix whitelist (save to apply).');
+  };
+
+  const handleUpdateVanity = (field, value) => {
+    const currentVanity = localConfig.vanity || { enabled: false, text: '', roleId: null };
+    setLocalConfig({
+      ...localConfig,
+      vanity: {
+        ...currentVanity,
+        [field]: value
+      }
+    });
   };
 
   const handleCreateReactionRoles = (e) => {
@@ -662,6 +723,52 @@ export default function DashboardPanel({
             <Database size={16} />
             <span>Server Backups</span>
           </button>
+
+          <button 
+            onClick={() => setActiveTab('vanity')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              width: '100%',
+              padding: '12px 16px',
+              background: activeTab === 'vanity' ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
+              border: activeTab === 'vanity' ? '1px solid rgba(124, 58, 237, 0.2)' : '1px solid transparent',
+              borderRadius: '10px',
+              color: activeTab === 'vanity' ? '#fff' : '#9CA3AF',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '13px',
+              textAlign: 'left',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <UserCheck size={16} />
+            <span>Vanity Reward</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('settings')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              width: '100%',
+              padding: '12px 16px',
+              background: activeTab === 'settings' ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
+              border: activeTab === 'settings' ? '1px solid rgba(124, 58, 237, 0.2)' : '1px solid transparent',
+              borderRadius: '10px',
+              color: activeTab === 'settings' ? '#fff' : '#9CA3AF',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '13px',
+              textAlign: 'left',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <LayoutDashboard size={16} />
+            <span>Server Settings</span>
+          </button>
         </nav>
       </aside>
 
@@ -698,6 +805,47 @@ export default function DashboardPanel({
                 <div style={{ color: '#9CA3AF', fontSize: '13px', marginBottom: '8px' }}>Reaction Role Menus</div>
                 <div style={{ fontSize: '28px', fontWeight: '700' }}>{reactionRoles.length}</div>
               </div>
+            </div>
+
+            {/* Lockdown Control Panel */}
+            <div className="glass-panel" style={{ 
+              padding: '24px', 
+              border: lockdownActive ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(255,255,255,0.04)',
+              background: lockdownActive ? 'rgba(239, 68, 68, 0.02)' : 'rgba(255,255,255,0.01)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '20px'
+            }}>
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', margin: '0 0 4px', color: lockdownActive ? '#EF4444' : '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>🚨 Emergency Server Lockdown</span>
+                  {lockdownActive && <span className="animate-pulse" style={{ fontSize: '11px', background: '#EF4444', color: '#fff', padding: '2px 8px', borderRadius: '12px', textTransform: 'uppercase' }}>Active</span>}
+                </h3>
+                <p style={{ color: '#9CA3AF', fontSize: '12px', margin: 0 }}>
+                  {lockdownActive 
+                    ? 'All server channels are currently locked down. Members cannot send messages or add reactions.' 
+                    : 'Instantly freeze writing permissions for @everyone across all text channels during an active raid.'}
+                </p>
+              </div>
+              <button 
+                onClick={handleToggleLockdown}
+                style={{
+                  padding: '12px 24px',
+                  borderRadius: '10px',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  border: lockdownActive ? '1px solid #10B981' : '1px solid #EF4444',
+                  background: lockdownActive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                  color: lockdownActive ? '#10B981' : '#EF4444',
+                  boxShadow: lockdownActive ? '0 0 15px rgba(16, 185, 129, 0.15)' : '0 0 15px rgba(239, 68, 68, 0.15)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {lockdownActive ? 'Lift Lockdown' : 'Trigger Lockdown'}
+              </button>
             </div>
 
             {/* General Settings */}
@@ -1419,6 +1567,149 @@ export default function DashboardPanel({
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* VANITY STATUS REWARD TAB */}
+        {activeTab === 'vanity' && (
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 8px' }}>Custom Status Vanity Reward</h2>
+              <p style={{ color: '#9CA3AF', fontSize: '14px', margin: 0 }}>Automatically reward members who place your server invite or custom text in their status.</p>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '600px' }}>
+              <GlowToggle 
+                label="Enable Status reward" 
+                checked={!!localConfig.vanity?.enabled} 
+                onChange={() => handleUpdateVanity('enabled', !localConfig.vanity?.enabled)} 
+              />
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Status Keyword / Invite Link</label>
+                <input 
+                  type="text" 
+                  className="glow-input"
+                  placeholder="e.g., discord.gg/ragnir"
+                  value={localConfig.vanity?.text || ''} 
+                  onChange={(e) => handleUpdateVanity('text', e.target.value)}
+                />
+                <span style={{ fontSize: '11px', color: '#6B7280' }}>The matching is case-insensitive. If this phrase is found in user custom status text, they get rewarded.</span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Reward Role</label>
+                <select 
+                  className="glow-input"
+                  value={localConfig.vanity?.roleId || ''}
+                  onChange={(e) => handleUpdateVanity('roleId', e.target.value || null)}
+                >
+                  <option value="">Select a role to assign...</option>
+                  {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </div>
+
+              <button className="glow-btn" onClick={() => onSaveConfig(localConfig)} style={{ marginTop: '8px' }}>
+                <Save size={16} />
+                <span>Save Vanity Configuration</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* SERVER SETTINGS TAB */}
+        {activeTab === 'settings' && (
+          <div className="animate-fade-in" style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: '320px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div>
+                <h2 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 8px' }}>Server Settings</h2>
+                <p style={{ color: '#9CA3AF', fontSize: '14px', margin: 0 }}>Configure prefixes, administrators, and prefixless whitelists.</p>
+              </div>
+
+              <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Server-wide Command Prefix</label>
+                  <input 
+                    type="text" 
+                    className="glow-input"
+                    value={localConfig.prefix || ';'}
+                    onChange={(e) => handleUpdateConfig('prefix', e.target.value)}
+                    maxLength={5}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Moderator Role</label>
+                  <select 
+                    className="glow-input"
+                    value={localConfig.modRole || ''}
+                    onChange={(e) => handleUpdateConfig('modRole', e.target.value || null)}
+                  >
+                    <option value="">None</option>
+                    {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Administrator Role</label>
+                  <select 
+                    className="glow-input"
+                    value={localConfig.adminRole || ''}
+                    onChange={(e) => handleUpdateConfig('adminRole', e.target.value || null)}
+                  >
+                    <option value="">None</option>
+                    {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                </div>
+
+                <button className="glow-btn" onClick={() => onSaveConfig(localConfig)}>
+                  <Save size={16} />
+                  <span>Save Settings Config</span>
+                </button>
+              </div>
+            </div>
+
+            {/* No Prefix Whitelist Panel */}
+            <div style={{ width: '360px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '600', margin: '0 0 16px', color: '#fff' }}>No-Prefix Users Whitelist</h3>
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
+                  <input 
+                    type="text" 
+                    className="glow-input" 
+                    placeholder="Enter User ID"
+                    value={newNoPrefixUserId}
+                    onChange={(e) => setNewNoPrefixUserId(e.target.value)}
+                    style={{ padding: '10px 14px' }}
+                  />
+                  <button 
+                    className="glow-btn"
+                    onClick={() => handleAddNoPrefixUser(newNoPrefixUserId)}
+                    style={{ padding: '10px 20px', fontSize: '13px' }}
+                  >
+                    Add
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {(localConfig.noPrefixUsers || []).length === 0 ? (
+                    <div style={{ fontSize: '12px', color: '#6B7280', fontStyle: 'italic', textAlign: 'center', padding: '16px 0' }}>No users whitelisted for No Prefix mode.</div>
+                  ) : (
+                    (localConfig.noPrefixUsers || []).map(userId => (
+                      <div key={userId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: '8px' }}>
+                        <code style={{ fontSize: '12px', color: '#A78BFA' }}>{userId}</code>
+                        <button 
+                          onClick={() => handleRemoveNoPrefixUser(userId)}
+                          style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}

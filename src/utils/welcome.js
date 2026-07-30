@@ -25,6 +25,9 @@ export function formatWelcomeMessage(message, data) {
 
     const user = data?.user;
     const guild = data?.guild;
+    const inviter = data?.inviter;
+    const inviteCode = data?.inviteCode;
+    const inviteUses = data?.inviteUses;
 
     
     if (!user || typeof user !== 'object') {
@@ -48,7 +51,11 @@ export function formatWelcomeMessage(message, data) {
         '{guild.id}': guild?.id || 'unknown',
         '{guild.memberCount}': guild?.memberCount?.toString?.() || '0',
         '{memberCount}': guild?.memberCount?.toString?.() || '0',
-        '{membercount}': guild?.memberCount?.toString?.() || '0'
+        '{membercount}': guild?.memberCount?.toString?.() || '0',
+        '{inviter}': inviter ? (inviter.toString?.() || inviter.username || 'Inviter') : 'Vanished Inviter',
+        '{inviter.tag}': inviter?.tag || 'Unknown#0000',
+        '{inviteCode}': inviteCode || 'unknown',
+        '{inviteUses}': inviteUses?.toString?.() || '0'
     };
 
     let result = message;

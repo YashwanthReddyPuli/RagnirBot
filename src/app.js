@@ -33,6 +33,7 @@ class RagnirBot extends Client {
         GatewayIntentBits.GuildBans,                    
         GatewayIntentBits.GuildWebhooks,
         GatewayIntentBits.GuildEmojisAndStickers,
+        GatewayIntentBits.GuildPresences,
       ],
     });
 

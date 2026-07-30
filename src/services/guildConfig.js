@@ -5,6 +5,9 @@ import { wrapServiceBoundary } from '../utils/serviceErrorBoundary.js';
 
 const GUILD_CONFIG_DEFAULTS = {
     prefix: BotConfig.prefix,
+    noPrefixUsers: [],
+    lockdownActive: false,
+    vanity: { enabled: false, text: '', roleId: null },
     modRole: null,
     adminRole: null,
     logChannelId: null,
