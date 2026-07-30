@@ -12,7 +12,9 @@ import {
   Shield,
   ShieldAlert,
   ListFilter,
-  UserCheck
+  UserCheck,
+  Zap,
+  Fingerprint
 } from 'lucide-react';
 import GlowToggle from '../components/GlowToggle';
 import DiscordPreview from '../components/DiscordPreview';
@@ -397,6 +399,60 @@ export default function DashboardPanel({
     });
   };
 
+  const handleUpdateAutoMod = (path, value) => {
+    const currentAutoMod = localConfig.automod || { enabled: false, logChannelId: null, ignoredChannels: [], ignoredRoles: [], timeoutDuration: 600000 };
+    let updated;
+    if (path.includes('.')) {
+      const [parent, child] = path.split('.');
+      updated = {
+        ...localConfig,
+        automod: {
+          ...currentAutoMod,
+          [parent]: {
+            ...(currentAutoMod[parent] || {}),
+            [child]: value
+          }
+        }
+      };
+    } else {
+      updated = {
+        ...localConfig,
+        automod: {
+          ...currentAutoMod,
+          [path]: value
+        }
+      };
+    }
+    setLocalConfig(updated);
+  };
+
+  const handleUpdateVerification = (path, value) => {
+    const currentVerif = localConfig.verification || { enabled: false, channelId: null, roleId: null, buttonText: 'Verify', autoVerify: { enabled: false, criteria: 'none' } };
+    let updated;
+    if (path.includes('.')) {
+      const [parent, child] = path.split('.');
+      updated = {
+        ...localConfig,
+        verification: {
+          ...currentVerif,
+          [parent]: {
+            ...(currentVerif[parent] || {}),
+            [child]: value
+          }
+        }
+      };
+    } else {
+      updated = {
+        ...localConfig,
+        verification: {
+          ...currentVerif,
+          [path]: value
+        }
+      };
+    }
+    setLocalConfig(updated);
+  };
+
   const handleCreateReactionRoles = (e) => {
     e.preventDefault();
     if (!rrChannelId || !rrMessageId || !rrRoleId) {
@@ -768,6 +824,52 @@ export default function DashboardPanel({
           >
             <LayoutDashboard size={16} />
             <span>Server Settings</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('automod')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              width: '100%',
+              padding: '12px 16px',
+              background: activeTab === 'automod' ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
+              border: activeTab === 'automod' ? '1px solid rgba(124, 58, 237, 0.2)' : '1px solid transparent',
+              borderRadius: '10px',
+              color: activeTab === 'automod' ? '#fff' : '#9CA3AF',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '13px',
+              textAlign: 'left',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <Zap size={16} />
+            <span>Auto-Moderation</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('verification')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              width: '100%',
+              padding: '12px 16px',
+              background: activeTab === 'verification' ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
+              border: activeTab === 'verification' ? '1px solid rgba(124, 58, 237, 0.2)' : '1px solid transparent',
+              borderRadius: '10px',
+              color: activeTab === 'verification' ? '#fff' : '#9CA3AF',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '13px',
+              textAlign: 'left',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <Fingerprint size={16} />
+            <span>Verification Setup</span>
           </button>
         </nav>
       </aside>
@@ -1709,6 +1811,294 @@ export default function DashboardPanel({
                     ))
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* AUTOMOD TAB */}
+        {activeTab === 'automod' && (
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 8px' }}>Auto-Moderation Settings</h2>
+              <p style={{ color: '#9CA3AF', fontSize: '14px', margin: 0 }}>Configure automatic filters for spam, links, blacklisted words, and mentions.</p>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '800px' }}>
+              <GlowToggle 
+                label="Global AutoMod System Enabled" 
+                checked={!!localConfig.automod?.enabled} 
+                onChange={() => handleUpdateAutoMod('enabled', !localConfig.automod?.enabled)} 
+              />
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '400px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>AutoMod Log Channel</label>
+                <select 
+                  className="glow-input"
+                  value={localConfig.automod?.logChannelId || ''}
+                  onChange={(e) => handleUpdateAutoMod('logChannelId', e.target.value || null)}
+                >
+                  <option value="">Select log channel...</option>
+                  {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '400px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Mute / Timeout Duration (Minutes)</label>
+                <input 
+                  type="number" 
+                  className="glow-input"
+                  value={Math.round((localConfig.automod?.timeoutDuration || 600000) / 60000)}
+                  onChange={(e) => handleUpdateAutoMod('timeoutDuration', Number(e.target.value) * 60000)}
+                />
+              </div>
+
+              <hr style={{ border: '0', borderTop: '1px solid rgba(255,255,255,0.04)', margin: '16px 0' }} />
+
+              {/* Sub-Filters Grid */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                
+                {/* 1. Invite Links Filter */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderRadius: '10px', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)' }}>
+                  <div>
+                    <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#fff', margin: '0 0 4px' }}>Block Discord Invites</h4>
+                    <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0 }}>Automatically delete message and warn user if they post Discord server invites.</p>
+                  </div>
+                  <GlowToggle 
+                    label=""
+                    checked={!!localConfig.automod?.invite?.enabled}
+                    onChange={() => handleUpdateAutoMod('invite.enabled', !localConfig.automod?.invite?.enabled)}
+                  />
+                </div>
+
+                {/* 2. Web Links Filter */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderRadius: '10px', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)' }}>
+                  <div>
+                    <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#fff', margin: '0 0 4px' }}>Block Web Links</h4>
+                    <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0 }}>Deletes messages containing websites or links from non-whitelisted domains.</p>
+                  </div>
+                  <GlowToggle 
+                    label=""
+                    checked={!!localConfig.automod?.link?.enabled}
+                    onChange={() => handleUpdateAutoMod('link.enabled', !localConfig.automod?.link?.enabled)}
+                  />
+                </div>
+
+                {/* 3. Spam & Flood Filter */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', borderRadius: '10px', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#fff', margin: '0 0 4px' }}>Anti-Spam / Message Flood</h4>
+                      <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0 }}>Warns or mutes members who send too many messages quickly.</p>
+                    </div>
+                    <GlowToggle 
+                      label=""
+                      checked={!!localConfig.automod?.spam?.enabled}
+                      onChange={() => handleUpdateAutoMod('spam.enabled', !localConfig.automod?.spam?.enabled)}
+                    />
+                  </div>
+                  {localConfig.automod?.spam?.enabled && (
+                    <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: '11px', color: '#9CA3AF' }}>Max Messages</label>
+                        <input 
+                          type="number" 
+                          className="glow-input" 
+                          value={localConfig.automod?.spam?.limit || 5} 
+                          onChange={(e) => handleUpdateAutoMod('spam.limit', Number(e.target.value))}
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: '11px', color: '#9CA3AF' }}>Time Interval (Seconds)</label>
+                        <input 
+                          type="number" 
+                          className="glow-input" 
+                          value={Math.round((localConfig.automod?.spam?.timeframe || 5000) / 1000)} 
+                          onChange={(e) => handleUpdateAutoMod('spam.timeframe', Number(e.target.value) * 1000)}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Bad Words Filter */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', borderRadius: '10px', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#fff', margin: '0 0 4px' }}>Banned Words Filter</h4>
+                      <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0 }}>Censors custom blacklisted phrases or slurs in your server.</p>
+                    </div>
+                    <GlowToggle 
+                      label=""
+                      checked={!!localConfig.automod?.words?.enabled}
+                      onChange={() => handleUpdateAutoMod('words.enabled', !localConfig.automod?.words?.enabled)}
+                    />
+                  </div>
+                  {localConfig.automod?.words?.enabled && (
+                    <div style={{ marginTop: '8px' }}>
+                      <label style={{ fontSize: '11px', color: '#9CA3AF' }}>Blacklisted words (comma separated)</label>
+                      <input 
+                        type="text" 
+                        className="glow-input" 
+                        placeholder="slur1, slur2, badword"
+                        value={(localConfig.automod?.words?.list || []).join(', ')} 
+                        onChange={(e) => handleUpdateAutoMod('words.list', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* 5. Mass Mentions Filter */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', borderRadius: '10px', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#fff', margin: '0 0 4px' }}>Anti-Mass Mention</h4>
+                      <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0 }}>Block mass mention pings in a single message.</p>
+                    </div>
+                    <GlowToggle 
+                      label=""
+                      checked={!!localConfig.automod?.mentions?.enabled}
+                      onChange={() => handleUpdateAutoMod('mentions.enabled', !localConfig.automod?.mentions?.enabled)}
+                    />
+                  </div>
+                  {localConfig.automod?.mentions?.enabled && (
+                    <div style={{ marginTop: '8px', maxWidth: '200px' }}>
+                      <label style={{ fontSize: '11px', color: '#9CA3AF' }}>Max Mentions Allowed</label>
+                      <input 
+                        type="number" 
+                        className="glow-input" 
+                        value={localConfig.automod?.mentions?.limit || 5} 
+                        onChange={(e) => handleUpdateAutoMod('mentions.limit', Number(e.target.value))}
+                      />
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              <button className="glow-btn" onClick={() => onSaveConfig(localConfig)} style={{ marginTop: '16px' }}>
+                <Save size={16} />
+                <span>Save AutoMod Configuration</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* VERIFICATION SETUP TAB */}
+        {activeTab === 'verification' && (
+          <div className="animate-fade-in" style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: '320px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div>
+                <h2 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 8px' }}>Member Verification Setup</h2>
+                <p style={{ color: '#9CA3AF', fontSize: '14px', margin: 0 }}>Configure reaction/button verification prompts to block raiders and userbots.</p>
+              </div>
+
+              <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <GlowToggle 
+                  label="Enable Button Verification" 
+                  checked={!!localConfig.verification?.enabled} 
+                  onChange={() => handleUpdateVerification('enabled', !localConfig.verification?.enabled)} 
+                />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Verification Channel</label>
+                  <select 
+                    className="glow-input"
+                    value={localConfig.verification?.channelId || ''}
+                    onChange={(e) => handleUpdateVerification('channelId', e.target.value || null)}
+                  >
+                    <option value="">Select channel...</option>
+                    {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Verified Role (Given on click)</label>
+                  <select 
+                    className="glow-input"
+                    value={localConfig.verification?.roleId || ''}
+                    onChange={(e) => handleUpdateVerification('roleId', e.target.value || null)}
+                  >
+                    <option value="">Select verification role...</option>
+                    {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Prompt Message Description</label>
+                  <textarea 
+                    rows={3}
+                    className="glow-input"
+                    placeholder="Click verify button to access server..."
+                    value={localConfig.verification?.message || ''}
+                    onChange={(e) => handleUpdateVerification('message', e.target.value)}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Button Label</label>
+                  <input 
+                    type="text" 
+                    className="glow-input"
+                    value={localConfig.verification?.buttonText || 'Verify'}
+                    onChange={(e) => handleUpdateVerification('buttonText', e.target.value)}
+                  />
+                </div>
+
+                <button className="glow-btn" onClick={() => onSaveConfig(localConfig)} style={{ marginTop: '8px' }}>
+                  <Save size={16} />
+                  <span>Save Verification Setup</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Auto-Verify Anti-Bot Gate */}
+            <div style={{ width: '380px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', margin: 0 }}>🛡️ Automatic Bypass Gates</h3>
+                <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0, lineHeight: 1.5 }}>
+                  Bypass the verification prompt automatically for trusted accounts (e.g. older accounts) to simplify onboarding.
+                </p>
+
+                <GlowToggle 
+                  label="Enable Auto-Bypass" 
+                  checked={!!localConfig.verification?.autoVerify?.enabled} 
+                  onChange={() => {
+                    const currentAuto = localConfig.verification?.autoVerify || { enabled: false, criteria: 'none' };
+                    handleUpdateVerification('autoVerify', { ...currentAuto, enabled: !currentAuto.enabled });
+                  }} 
+                />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Bypass Criteria</label>
+                  <select 
+                    className="glow-input"
+                    value={localConfig.verification?.autoVerify?.criteria || 'none'}
+                    onChange={(e) => {
+                      const currentAuto = localConfig.verification?.autoVerify || { enabled: false, criteria: 'none' };
+                      handleUpdateVerification('autoVerify', { ...currentAuto, criteria: e.target.value });
+                    }}
+                  >
+                    <option value="none">None</option>
+                    <option value="account_age">Account Creation Age</option>
+                    <option value="server_size">Server Member Count</option>
+                  </select>
+                </div>
+
+                {localConfig.verification?.autoVerify?.criteria === 'account_age' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Minimum Account Age (Days)</label>
+                    <input 
+                      type="number" 
+                      className="glow-input" 
+                      value={localConfig.verification?.autoVerify?.accountAgeDays || 7}
+                      onChange={(e) => {
+                        const currentAuto = localConfig.verification?.autoVerify || { enabled: false, criteria: 'none' };
+                        handleUpdateVerification('autoVerify', { ...currentAuto, accountAgeDays: Number(e.target.value) });
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>

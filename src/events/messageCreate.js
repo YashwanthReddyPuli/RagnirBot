@@ -162,7 +162,6 @@ export default {
         const command = client.commands.get(commandName);
         if (command) {
           const mockInteraction = new MockInteraction(message, commandName, args);
-          InteractionHelper.patchInteractionResponses(mockInteraction);
           try {
             await command.execute(mockInteraction, config, client);
           } catch (cmdErr) {
