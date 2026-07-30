@@ -430,6 +430,8 @@ export default (client) => {
             logger.error(`Error deleting reaction roles ${req.params.messageId}:`, error.message);
             res.status(500).json({ error: 'Failed to delete reaction roles' });
         }
+    });
+
     // Toggle emergency lockdown
     router.post('/guilds/:guildId/lockdown', authMiddleware, adminGuildMiddleware, async (req, res) => {
         try {
