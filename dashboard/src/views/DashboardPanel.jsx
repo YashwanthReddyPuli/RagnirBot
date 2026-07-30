@@ -115,6 +115,36 @@ export default function DashboardPanel({
     .catch(() => triggerAlert('error', 'Failed to connect to restore engine.'));
   };
 
+  if (!localConfig) {
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        width: '100%',
+        backgroundColor: '#060709',
+        color: '#fff',
+        fontFamily: 'sans-serif'
+      }}>
+        <div style={{
+          width: '32px',
+          height: '32px',
+          border: '3px solid rgba(124, 58, 237, 0.1)',
+          borderTopColor: '#7C3AED',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite',
+          marginBottom: '16px'
+        }} />
+        <style>{`
+          @keyframes spin { to { transform: rotate(360deg); } }
+        `}</style>
+        <span>Loading server settings...</span>
+      </div>
+    );
+  }
+
   return (
     <div style={{
       display: 'flex',
