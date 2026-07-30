@@ -3,6 +3,11 @@ import { Client, Collection, GatewayIntentBits } from 'discord.js';
 import { REST } from '@discordjs/rest';
 import express from 'express';
 import cron from 'node-cron';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 import config from './config/application.js';
 import { initializeDatabase } from './utils/database.js';
@@ -151,6 +156,10 @@ class RagnirBot extends Client {
     app.use(express.json());
     app.use('/api', apiRouter(this));
 
+    // Serve React Dashboard static assets
+    const distPath = path.join(__dirname, '../dashboard/dist');
+    app.use(express.static(distPath));
+
     app.get('/health', (req, res) => {
       const dbStatus = this.db?.getStatus?.() || { isDegraded: 'unknown' };
       const status = {
@@ -189,6 +198,11 @@ class RagnirBot extends Client {
         version: '2.0.0',
         timestamp: new Date().toISOString()
       });
+    });
+
+    // Fallback to React index.html for UI views (like OAuth callbacks)
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(__dirname, '../dashboard/dist/index.html'));
     });
 
     const startServer = (port, attempt = 0) => {

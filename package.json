@@ -12,7 +12,9 @@
     "migrate:status": "node scripts/migrate.js status",
     "backup:db": "node scripts/backup.js",
     "restore:db": "node scripts/restore.js",
-    "backup:drill": "node scripts/restore-drill.js"
+    "backup:drill": "node scripts/restore-drill.js",
+    "build:dashboard": "npm run build --prefix dashboard",
+    "postinstall": "npm install --prefix dashboard && npm run build --prefix dashboard"
   },
   "dependencies": {
     "@discordjs/rest": "^2.6.1",

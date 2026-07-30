@@ -1,6 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import axios from 'axios';
+import { ChannelType } from 'discord.js';
 import { getGuildConfig, setGuildConfig } from '../services/guildConfig.js';
 import { BackupService } from '../services/backupService.js';
 import { logger } from '../utils/logger.js';
@@ -41,6 +42,14 @@ export default (client) => {
     };
 
     // --- ENDPOINTS ---
+
+    // Get Auth Config
+    router.get('/auth/config', (req, res) => {
+        res.json({
+            clientId: process.env.CLIENT_ID,
+            redirectUri: process.env.REDIRECT_URI
+        });
+    });
 
     // OAuth2 Login / Code Exchange
     router.post('/auth/login', async (req, res) => {
@@ -217,6 +226,47 @@ export default (client) => {
         } catch (error) {
             logger.error(`Error restoring backup for guild ${req.params.guildId}:`, error.message);
             res.status(500).json({ error: 'Failed to restore backup' });
+        }
+    });
+
+    // Delete a server backup
+    router.delete('/guilds/:guildId/backups/:backupId', authMiddleware, adminGuildMiddleware, async (req, res) => {
+        try {
+            const { backupId } = req.params;
+            const backup = await BackupService.getBackup(backupId);
+            if (!backup || backup.guild_id !== req.params.guildId) {
+                return res.status(404).json({ error: 'Backup not found for this server' });
+            }
+
+            const deleted = await BackupService.deleteBackup(backupId);
+            if (!deleted) {
+                return res.status(500).json({ error: 'Failed to delete backup' });
+            }
+
+            res.json({ success: true });
+        } catch (error) {
+            logger.error(`Error deleting backup ${req.params.backupId}:`, error.message);
+            res.status(500).json({ error: 'Failed to delete backup' });
+        }
+    });
+
+    // Fetch channels list for dropdowns
+    router.get('/guilds/:guildId/channels', authMiddleware, adminGuildMiddleware, async (req, res) => {
+        try {
+            const guild = client.guilds.cache.get(req.params.guildId);
+            if (!guild) {
+                return res.status(404).json({ error: 'Bot is not present in this guild' });
+            }
+            const channels = guild.channels.cache
+                .filter(c => c.type === ChannelType.GuildText)
+                .map(c => ({
+                    id: c.id,
+                    name: c.name
+                }));
+            res.json(channels);
+        } catch (error) {
+            logger.error(`Error fetching channels for guild ${req.params.guildId}:`, error.message);
+            res.status(500).json({ error: 'Failed to fetch channels' });
         }
     });
 
