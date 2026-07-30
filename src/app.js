@@ -192,16 +192,8 @@ class RagnirBot extends Client {
       });
     });
 
-    app.get('/', (req, res) => {
-      res.status(200).json({ 
-        message: 'RagnirBot System Online',
-        version: '2.0.0',
-        timestamp: new Date().toISOString()
-      });
-    });
-
-    // Fallback to React index.html for UI views (like OAuth callbacks)
-    app.get('*', (req, res) => {
+    // Fallback to React index.html for UI views (like OAuth callbacks and main page)
+    app.get('/*splat', (req, res) => {
       res.sendFile(path.join(__dirname, '../dashboard/dist/index.html'));
     });
 
