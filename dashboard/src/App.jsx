@@ -8,8 +8,15 @@ export default function App() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('ragnir_user')) || null);
   const [guilds, setGuilds] = useState([]);
   const [currentGuildId, setCurrentGuildId] = useState(null);
+  
+  // Settings modules state
   const [guildConfig, setGuildConfig] = useState(null);
+  const [welcomeConfig, setWelcomeConfig] = useState(null);
   const [backups, setBackups] = useState([]);
+  const [warnings, setWarnings] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [reactionRoles, setReactionRoles] = useState([]);
+  
   const [isLoading, setIsLoading] = useState(false);
   const [alert, setAlert] = useState(null);
 
@@ -25,7 +32,6 @@ export default function App() {
     const code = urlParams.get('code');
     if (code) {
       setIsLoading(true);
-      // Clear URL params
       window.history.replaceState({}, document.title, window.location.pathname);
       
       fetch('/api/auth/login', {
@@ -84,6 +90,11 @@ export default function App() {
     setGuilds([]);
     setCurrentGuildId(null);
     setGuildConfig(null);
+    setWelcomeConfig(null);
+    setBackups([]);
+    setWarnings([]);
+    setRoles([]);
+    setReactionRoles([]);
     localStorage.removeItem('ragnir_jwt_token');
     localStorage.removeItem('ragnir_user');
     triggerAlert('success', 'Logged out successfully.');
@@ -93,28 +104,29 @@ export default function App() {
     setIsLoading(true);
     setCurrentGuildId(guildId);
     
-    // Load config
-    fetch(`/api/guilds/${guildId}/config`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    .then(res => res.json())
-    .then(config => {
-      setGuildConfig(config);
-      // Load backups
-      return fetch(`/api/guilds/${guildId}/backups`, {
-        headers: { Authorization: `Bearer ${token}` }
+    // Fetch all configurations in parallel
+    const pConfig = fetch(`/api/guilds/${guildId}/config`, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
+    const pWelcome = fetch(`/api/guilds/${guildId}/welcome`, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
+    const pBackups = fetch(`/api/guilds/${guildId}/backups`, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
+    const pWarnings = fetch(`/api/guilds/${guildId}/moderation/warnings`, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
+    const pRoles = fetch(`/api/guilds/${guildId}/roles`, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
+    const pReactionRoles = fetch(`/api/guilds/${guildId}/reaction-roles`, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
+
+    Promise.all([pConfig, pWelcome, pBackups, pWarnings, pRoles, pReactionRoles])
+      .then(([configData, welcomeData, backupsData, warningsData, rolesData, rrData]) => {
+        setGuildConfig(configData);
+        setWelcomeConfig(welcomeData);
+        setBackups(backupsData);
+        setWarnings(warningsData);
+        setRoles(rolesData);
+        setReactionRoles(rrData);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        setIsLoading(false);
+        triggerAlert('error', 'Failed to load server settings.');
+        setCurrentGuildId(null);
       });
-    })
-    .then(res => res.json())
-    .then(backupsData => {
-      setBackups(backupsData);
-      setIsLoading(false);
-    })
-    .catch(err => {
-      setIsLoading(false);
-      triggerAlert('error', 'Failed to load server settings.');
-      setCurrentGuildId(null);
-    });
   };
 
   const handleSaveConfig = (updatedConfig) => {
@@ -143,6 +155,32 @@ export default function App() {
     });
   };
 
+  const handleSaveWelcome = (updatedWelcome) => {
+    setIsLoading(true);
+    fetch(`/api/guilds/${currentGuildId}/welcome`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(updatedWelcome)
+    })
+    .then(res => res.json())
+    .then(data => {
+      setIsLoading(false);
+      if (data.success) {
+        setWelcomeConfig(updatedWelcome);
+        triggerAlert('success', 'Welcome greeting settings saved!');
+      } else {
+        triggerAlert('error', 'Failed to save welcome settings.');
+      }
+    })
+    .catch(() => {
+      setIsLoading(false);
+      triggerAlert('error', 'Failed to save welcome configuration.');
+    });
+  };
+
   const handleCreateBackup = (name) => {
     setIsLoading(true);
     fetch(`/api/guilds/${currentGuildId}/backups`, {
@@ -159,7 +197,6 @@ export default function App() {
         triggerAlert('error', `Backup failed: ${data.error}`);
         setIsLoading(false);
       } else {
-        // Refresh backups list
         fetch(`/api/guilds/${currentGuildId}/backups`, {
           headers: { Authorization: `Bearer ${token}` }
         })
@@ -175,30 +212,6 @@ export default function App() {
       setIsLoading(false);
       triggerAlert('error', 'Failed to trigger backup.');
     });
-  };
-
-  const handleDeleteBackup = (backupId) => {
-    setIsLoading(true);
-    fetch(`/api/guilds/${currentGuildId}/backups/${backupId}`, {
-      method: 'DELETE', // wait, route was not defined as DELETE, wait!
-      // Ah! Let's check: our API router has router.delete('/guilds/:guildId/backups/:backupId') or did we define it differently?
-      // Wait, let's look at apiRouter.js:
-      // router.post('/guilds/:guildId/backups', ...)
-      // We didn't define a DELETE endpoint, wait, let's verify if we defined a delete endpoint in apiRouter.js.
-      // Yes, we had:
-      // Oh, let's see. Let's check apiRouter.js lines 220 to 260.
-      // Wait, did we miss a DELETE endpoint in apiRouter.js?
-      // Let's check: in apiRouter.js, did we add:
-      // router.post('/guilds/:guildId/backups', ...)
-      // router.post('/guilds/:guildId/backups/:backupId/restore', ...)
-      // Ah! We didn't add a router.delete('/guilds/:guildId/backups/:backupId') in apiRouter.js!
-      // Wait! Let's double check. If we didn't add a delete endpoint, let's look at how deleteBackup is implemented.
-      // Yes, we only defined router.get('/guilds/:guildId/backups') and router.post('/guilds/:guildId/backups').
-      // Let's add router.delete('/guilds/:guildId/backups/:backupId') to apiRouter.js later if needed, or we can add it now.
-      // Wait! Let's check apiRouter.js. Yes, we can make it a DELETE /api/guilds/:guildId/backups/:backupId endpoint! Let's define the frontend fetch with DELETE method, and then we will update apiRouter.js if it doesn't have it.
-    })
-    .then(res => res.json())
-    // ...
   };
 
   return (
@@ -265,13 +278,20 @@ export default function App() {
         <DashboardPanel 
           guild={guilds.find(g => g.id === currentGuildId)} 
           config={guildConfig} 
+          welcome={welcomeConfig}
           backups={backups}
+          warnings={warnings}
+          roles={roles}
+          reactionRoles={reactionRoles}
           onSaveConfig={handleSaveConfig} 
+          onSaveWelcome={handleSaveWelcome}
           onCreateBackup={handleCreateBackup}
           onBack={() => setCurrentGuildId(null)} 
           token={token}
           triggerAlert={triggerAlert}
           setBackups={setBackups}
+          setWarnings={setWarnings}
+          setReactionRoles={setReactionRoles}
         />
       )}
     </div>

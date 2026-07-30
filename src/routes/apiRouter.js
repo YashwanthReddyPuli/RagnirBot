@@ -4,6 +4,13 @@ import axios from 'axios';
 import { ChannelType } from 'discord.js';
 import { getGuildConfig, setGuildConfig } from '../services/guildConfig.js';
 import { BackupService } from '../services/backupService.js';
+import { getWelcomeConfig, updateWelcomeConfig } from '../utils/database.js';
+import { WarningService } from '../services/warningService.js';
+import { 
+    getAllReactionRoleMessages, 
+    createReactionRoleMessage, 
+    deleteReactionRoleMessage 
+} from '../services/reactionRoleService.js';
 import { logger } from '../utils/logger.js';
 
 export default (client) => {
@@ -267,6 +274,148 @@ export default (client) => {
         } catch (error) {
             logger.error(`Error fetching channels for guild ${req.params.guildId}:`, error.message);
             res.status(500).json({ error: 'Failed to fetch channels' });
+        }
+    });
+
+    // Fetch roles list for dropdowns
+    router.get('/guilds/:guildId/roles', authMiddleware, adminGuildMiddleware, async (req, res) => {
+        try {
+            const guild = client.guilds.cache.get(req.params.guildId);
+            if (!guild) {
+                return res.status(404).json({ error: 'Bot is not present in this guild' });
+            }
+            const roles = guild.roles.cache
+                .filter(r => r.name !== '@everyone')
+                .map(r => ({
+                    id: r.id,
+                    name: r.name,
+                    color: r.hexColor,
+                    position: r.position
+                }))
+                .sort((a, b) => b.position - a.position);
+            res.json(roles);
+        } catch (error) {
+            logger.error(`Error fetching roles for guild ${req.params.guildId}:`, error.message);
+            res.status(500).json({ error: 'Failed to fetch roles' });
+        }
+    });
+
+    // Fetch welcome system configuration
+    router.get('/guilds/:guildId/welcome', authMiddleware, adminGuildMiddleware, async (req, res) => {
+        try {
+            const welcomeConfig = await getWelcomeConfig(client, req.params.guildId);
+            res.json(welcomeConfig || { enabled: false, welcomeMessage: 'Welcome {user} to {server}!' });
+        } catch (error) {
+            logger.error(`Error fetching welcome config for guild ${req.params.guildId}:`, error.message);
+            res.status(500).json({ error: 'Failed to fetch welcome config' });
+        }
+    });
+
+    // Update welcome system configuration
+    router.post('/guilds/:guildId/welcome', authMiddleware, adminGuildMiddleware, async (req, res) => {
+        try {
+            await updateWelcomeConfig(client, req.params.guildId, req.body);
+            res.json({ success: true });
+        } catch (error) {
+            logger.error(`Error saving welcome config for guild ${req.params.guildId}:`, error.message);
+            res.status(500).json({ error: 'Failed to save welcome config' });
+        }
+    });
+
+    // Fetch moderation warning cases
+    router.get('/guilds/:guildId/moderation/warnings', authMiddleware, adminGuildMiddleware, async (req, res) => {
+        try {
+            const prefix = `moderation:warnings:${req.params.guildId}:`;
+            const keys = await client.db.list(prefix);
+            const allWarnings = [];
+            
+            let actualKeys = Array.isArray(keys) ? keys : (keys?.value || []);
+            if (typeof keys === 'object' && !Array.isArray(keys) && !keys.value) {
+                const allDbKeys = await client.db.list() || [];
+                actualKeys = allDbKeys.filter(k => k.startsWith(prefix));
+            }
+
+            for (const key of actualKeys) {
+                const data = await client.db.get(key);
+                if (Array.isArray(data)) {
+                    allWarnings.push(...data.filter(w => w && w.status !== 'deleted'));
+                }
+            }
+
+            res.json(allWarnings);
+        } catch (error) {
+            logger.error(`Error fetching warnings for guild ${req.params.guildId}:`, error.message);
+            res.status(500).json({ error: 'Failed to fetch warnings' });
+        }
+    });
+
+    // Issue a moderation warning
+    router.post('/guilds/:guildId/moderation/warn', authMiddleware, adminGuildMiddleware, async (req, res) => {
+        try {
+            const { userId, reason } = req.body;
+            if (!userId || !reason) {
+                return res.status(400).json({ error: 'Missing userId or reason' });
+            }
+            const result = await WarningService.addWarning({
+                guildId: req.params.guildId,
+                userId,
+                moderatorId: req.user.id,
+                reason
+            });
+            res.json(result);
+        } catch (error) {
+            logger.error(`Error adding warning for guild ${req.params.guildId}:`, error.message);
+            res.status(500).json({ error: 'Failed to add warning' });
+        }
+    });
+
+    // Revoke a moderation warning
+    router.delete('/guilds/:guildId/moderation/warnings/:userId/:warningId', authMiddleware, adminGuildMiddleware, async (req, res) => {
+        try {
+            const { userId, warningId } = req.params;
+            const result = await WarningService.removeWarning(req.params.guildId, userId, Number(warningId));
+            res.json(result);
+        } catch (error) {
+            logger.error(`Error deleting warning ${warningId} for user ${userId}:`, error.message);
+            res.status(500).json({ error: 'Failed to delete warning' });
+        }
+    });
+
+    // Fetch reaction roles list
+    router.get('/guilds/:guildId/reaction-roles', authMiddleware, adminGuildMiddleware, async (req, res) => {
+        try {
+            const messages = await getAllReactionRoleMessages(client, req.params.guildId);
+            res.json(messages);
+        } catch (error) {
+            logger.error(`Error fetching reaction roles for guild ${req.params.guildId}:`, error.message);
+            res.status(500).json({ error: 'Failed to fetch reaction roles' });
+        }
+    });
+
+    // Create a new reaction roles menu
+    router.post('/guilds/:guildId/reaction-roles', authMiddleware, adminGuildMiddleware, async (req, res) => {
+        try {
+            const { channelId, messageId, roleIds } = req.body;
+            if (!channelId || !messageId || !Array.isArray(roleIds)) {
+                return res.status(400).json({ error: 'Missing channelId, messageId, or roleIds' });
+            }
+            const result = await createReactionRoleMessage(client, req.params.guildId, channelId, messageId, roleIds);
+            res.json({ success: true, data: result });
+        } catch (error) {
+            logger.error(`Error creating reaction roles for guild ${req.params.guildId}:`, error.message);
+            res.status(500).json({ error: error.message || 'Failed to create reaction roles' });
+        }
+    });
+
+    // Delete reaction roles menu
+    router.delete('/guilds/:guildId/reaction-roles/:messageId', authMiddleware, adminGuildMiddleware, async (req, res) => {
+        try {
+            const { messageId } = req.params;
+            const result = await deleteReactionRoleMessage(client, req.params.guildId, messageId);
+            res.json({ success: result });
+        } catch (error) {
+            logger.error(`Error deleting reaction roles ${req.params.messageId}:`, error.message);
+            res.status(500).json({ error: 'Failed to delete reaction roles' });
         }
     });
 
