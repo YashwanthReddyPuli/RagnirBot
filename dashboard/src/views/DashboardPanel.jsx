@@ -55,6 +55,11 @@ export default function DashboardPanel({
   const [rrRoleId, setRrRoleId] = useState('');
   const [rrEmoji, setRrEmoji] = useState('');
 
+  // Whitelist inputs
+  const [newExtraOwner, setNewExtraOwner] = useState('');
+  const [newWhitelistUser, setNewWhitelistUser] = useState('');
+  const [newWhitelistRole, setNewWhitelistRole] = useState('');
+
   // Fetch channels list
   useEffect(() => {
     fetch(`/api/guilds/${guild.id}/channels`, {
@@ -164,6 +169,57 @@ export default function DashboardPanel({
 
   const handleUpdateWelcome = (field, value) => {
     setLocalWelcome({ ...localWelcome, [field]: value });
+  };
+
+  const handleAddExtraOwner = (userId) => {
+    if (!userId) return;
+    const extraOwners = [...(localConfig.antinuke?.extraOwners || [])];
+    if (extraOwners.includes(userId)) {
+      triggerAlert('error', 'User ID is already an extra owner.');
+      return;
+    }
+    extraOwners.push(userId);
+    handleUpdateAntiNuke('extraOwners', extraOwners);
+    setNewExtraOwner('');
+    triggerAlert('success', 'Extra Owner added (save to apply).');
+  };
+
+  const handleRemoveExtraOwner = (userId) => {
+    const extraOwners = (localConfig.antinuke?.extraOwners || []).filter(id => id !== userId);
+    handleUpdateAntiNuke('extraOwners', extraOwners);
+    triggerAlert('success', 'Extra Owner removed (save to apply).');
+  };
+
+  const handleAddWhitelistedUser = (userId) => {
+    if (!userId) return;
+    const whitelistedUsers = { ...(localConfig.antinuke?.whitelistedUsers || {}) };
+    whitelistedUsers[userId] = true;
+    handleUpdateAntiNuke('whitelistedUsers', whitelistedUsers);
+    setNewWhitelistUser('');
+    triggerAlert('success', 'User added to Whitelist (save to apply).');
+  };
+
+  const handleRemoveWhitelistedUser = (userId) => {
+    const whitelistedUsers = { ...(localConfig.antinuke?.whitelistedUsers || {}) };
+    delete whitelistedUsers[userId];
+    handleUpdateAntiNuke('whitelistedUsers', whitelistedUsers);
+    triggerAlert('success', 'User removed from Whitelist (save to apply).');
+  };
+
+  const handleAddWhitelistedRole = (roleId) => {
+    if (!roleId) return;
+    const whitelistedRoles = { ...(localConfig.antinuke?.whitelistedRoles || {}) };
+    whitelistedRoles[roleId] = true;
+    handleUpdateAntiNuke('whitelistedRoles', whitelistedRoles);
+    setNewWhitelistRole('');
+    triggerAlert('success', 'Role added to Whitelist (save to apply).');
+  };
+
+  const handleRemoveWhitelistedRole = (roleId) => {
+    const whitelistedRoles = { ...(localConfig.antinuke?.whitelistedRoles || {}) };
+    delete whitelistedRoles[roleId];
+    handleUpdateAntiNuke('whitelistedRoles', whitelistedRoles);
+    triggerAlert('success', 'Role removed from Whitelist (save to apply).');
   };
 
   // Actions
@@ -867,130 +923,338 @@ export default function DashboardPanel({
         {activeTab === 'antinuke' && (
           <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <div>
-              <h2 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 8px' }}>Anti-Nuke Protection Setup</h2>
-              <p style={{ color: '#9CA3AF', fontSize: '14px', margin: 0 }}>Configure server security thresholds and automatic punishments.</p>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 8px', color: '#fff' }}>Anti-Nuke Protection Setup</h2>
+              <p style={{ color: '#9CA3AF', fontSize: '14px', margin: 0 }}>Configure server security thresholds, automatic punishments, and whitelisted operators.</p>
             </div>
 
-            <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '700px' }}>
-              <GlowToggle 
-                label="Enable Anti-Nuke System" 
-                checked={!!localConfig.antinuke?.enabled} 
-                onChange={() => handleUpdateAntiNuke('enabled', !localConfig.antinuke?.enabled)} 
-              />
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '350px' }}>
-                <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Anti-Nuke Alerts Channel</label>
-                <select 
-                  className="glow-input"
-                  value={localConfig.antinuke?.logChannelId || ''}
-                  onChange={(e) => handleUpdateAntiNuke('logChannelId', e.target.value)}
-                >
-                  <option value="">Select a text channel...</option>
-                  {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
-                </select>
-              </div>
-
-              {/* Threshold Rules */}
-              <div style={{ marginTop: '16px' }}>
-                <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#fff', margin: '0 0 16px' }}>Trigger Threshold Rules</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
+              {/* Left Column: General Configuration & Whitelists */}
+              <div style={{ flex: '1 1 450px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                
+                {/* General Settings */}
+                <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Shield size={18} style={{ color: '#7C3AED' }} />
+                    <span>Security Engine</span>
+                  </h3>
                   
-                  {/* Channel Delete Rule */}
-                  <div className="glass-panel" style={{ padding: '16px', background: 'rgba(255,255,255,0.01)', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                    <div style={{ flex: 1, minWidth: '150px' }}>
-                      <div style={{ fontWeight: '600', color: '#fff', fontSize: '14px', marginBottom: '4px' }}>Channel Deletion Threshold</div>
-                      <div style={{ fontSize: '11px', color: '#9CA3AF' }}>Actions taken when user deletes channels quickly.</div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                      <div style={{ width: '80px' }}>
-                        <label style={{ fontSize: '10px', color: '#9CA3AF' }}>Limit</label>
-                        <input 
-                          type="number" 
-                          className="glow-input" 
-                          value={localConfig.antinuke?.settings?.channelDelete?.limit || 3}
-                          onChange={(e) => handleUpdateAntiNukeSetting('channelDelete', 'limit', Number(e.target.value))}
-                          style={{ padding: '8px' }}
-                        />
-                      </div>
-                      <div style={{ width: '120px' }}>
-                        <label style={{ fontSize: '10px', color: '#9CA3AF' }}>Timeframe (ms)</label>
-                        <input 
-                          type="number" 
-                          className="glow-input" 
-                          value={localConfig.antinuke?.settings?.channelDelete?.timeframe || 15000}
-                          onChange={(e) => handleUpdateAntiNukeSetting('channelDelete', 'timeframe', Number(e.target.value))}
-                          style={{ padding: '8px' }}
-                        />
-                      </div>
-                      <div style={{ width: '110px' }}>
-                        <label style={{ fontSize: '10px', color: '#9CA3AF' }}>Action</label>
-                        <select 
-                          className="glow-input"
-                          value={localConfig.antinuke?.settings?.channelDelete?.action || 'demote'}
-                          onChange={(e) => handleUpdateAntiNukeSetting('channelDelete', 'action', e.target.value)}
-                          style={{ padding: '8px' }}
-                        >
-                          <option value="none">None</option>
-                          <option value="demote">Demote</option>
-                          <option value="kick">Kick</option>
-                          <option value="ban">Ban</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
+                  <GlowToggle 
+                    label="Enable Anti-Nuke Protection" 
+                    checked={!!localConfig.antinuke?.enabled} 
+                    onChange={() => handleUpdateAntiNuke('enabled', !localConfig.antinuke?.enabled)} 
+                  />
 
-                  {/* Member Ban Rule */}
-                  <div className="glass-panel" style={{ padding: '16px', background: 'rgba(255,255,255,0.01)', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                    <div style={{ flex: 1, minWidth: '150px' }}>
-                      <div style={{ fontWeight: '600', color: '#fff', fontSize: '14px', marginBottom: '4px' }}>Member Banning Threshold</div>
-                      <div style={{ fontSize: '11px', color: '#9CA3AF' }}>Actions taken when user bans server members.</div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                      <div style={{ width: '80px' }}>
-                        <label style={{ fontSize: '10px', color: '#9CA3AF' }}>Limit</label>
-                        <input 
-                          type="number" 
-                          className="glow-input" 
-                          value={localConfig.antinuke?.settings?.memberBan?.limit || 3}
-                          onChange={(e) => handleUpdateAntiNukeSetting('memberBan', 'limit', Number(e.target.value))}
-                          style={{ padding: '8px' }}
-                        />
-                      </div>
-                      <div style={{ width: '120px' }}>
-                        <label style={{ fontSize: '10px', color: '#9CA3AF' }}>Timeframe (ms)</label>
-                        <input 
-                          type="number" 
-                          className="glow-input" 
-                          value={localConfig.antinuke?.settings?.memberBan?.timeframe || 15000}
-                          onChange={(e) => handleUpdateAntiNukeSetting('memberBan', 'timeframe', Number(e.target.value))}
-                          style={{ padding: '8px' }}
-                        />
-                      </div>
-                      <div style={{ width: '110px' }}>
-                        <label style={{ fontSize: '10px', color: '#9CA3AF' }}>Action</label>
-                        <select 
-                          className="glow-input"
-                          value={localConfig.antinuke?.settings?.memberBan?.action || 'demote'}
-                          onChange={(e) => handleUpdateAntiNukeSetting('memberBan', 'action', e.target.value)}
-                          style={{ padding: '8px' }}
-                        >
-                          <option value="none">None</option>
-                          <option value="demote">Demote</option>
-                          <option value="kick">Kick</option>
-                          <option value="ban">Ban</option>
-                        </select>
-                      </div>
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Security Alert Log Channel</label>
+                    <select 
+                      className="glow-input"
+                      value={localConfig.antinuke?.logChannelId || ''}
+                      onChange={(e) => handleUpdateAntiNuke('logChannelId', e.target.value)}
+                    >
+                      <option value="">Select a channel...</option>
+                      {channels.map(c => <option key={c.id} value={c.id}>#{c.name}</option>)}
+                    </select>
                   </div>
-
                 </div>
+
+                {/* Whitelist: Extra Owners */}
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff', margin: '0 0 16px' }}>Extra Owners Whitelist</h3>
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                    <input 
+                      type="text" 
+                      className="glow-input" 
+                      placeholder="Enter Discord User ID"
+                      value={newExtraOwner}
+                      onChange={(e) => setNewExtraOwner(e.target.value)}
+                      style={{ padding: '10px 14px' }}
+                    />
+                    <button 
+                      className="glow-btn"
+                      onClick={() => handleAddExtraOwner(newExtraOwner)}
+                      style={{ padding: '10px 20px', fontSize: '13px' }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {(localConfig.antinuke?.extraOwners || []).length === 0 ? (
+                      <div style={{ fontSize: '12px', color: '#6B7280', fontStyle: 'italic' }}>No extra owners defined.</div>
+                    ) : (
+                      (localConfig.antinuke?.extraOwners || []).map(userId => (
+                        <div key={userId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: '8px' }}>
+                          <code style={{ fontSize: '12px', color: '#A78BFA' }}>{userId}</code>
+                          <button 
+                            onClick={() => handleRemoveExtraOwner(userId)}
+                            style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Whitelist: Users */}
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff', margin: '0 0 16px' }}>Whitelisted Trusted Users</h3>
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                    <input 
+                      type="text" 
+                      className="glow-input" 
+                      placeholder="Enter Trusted User ID"
+                      value={newWhitelistUser}
+                      onChange={(e) => setNewWhitelistUser(e.target.value)}
+                      style={{ padding: '10px 14px' }}
+                    />
+                    <button 
+                      className="glow-btn"
+                      onClick={() => handleAddWhitelistedUser(newWhitelistUser)}
+                      style={{ padding: '10px 20px', fontSize: '13px' }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {Object.keys(localConfig.antinuke?.whitelistedUsers || {}).length === 0 ? (
+                      <div style={{ fontSize: '12px', color: '#6B7280', fontStyle: 'italic' }}>No trusted users whitelisted.</div>
+                    ) : (
+                      Object.keys(localConfig.antinuke?.whitelistedUsers || {}).map(userId => (
+                        <div key={userId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: '8px' }}>
+                          <code style={{ fontSize: '12px', color: '#A78BFA' }}>{userId}</code>
+                          <button 
+                            onClick={() => handleRemoveWhitelistedUser(userId)}
+                            style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Whitelist: Roles */}
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff', margin: '0 0 16px' }}>Whitelisted Bypass Roles</h3>
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                    <select 
+                      className="glow-input"
+                      value={newWhitelistRole}
+                      onChange={(e) => setNewWhitelistRole(e.target.value)}
+                      style={{ padding: '10px 14px' }}
+                    >
+                      <option value="">Select bypass role...</option>
+                      {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </select>
+                    <button 
+                      className="glow-btn"
+                      onClick={() => handleAddWhitelistedRole(newWhitelistRole)}
+                      style={{ padding: '10px 20px', fontSize: '13px' }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {Object.keys(localConfig.antinuke?.whitelistedRoles || {}).length === 0 ? (
+                      <div style={{ fontSize: '12px', color: '#6B7280', fontStyle: 'italic' }}>No bypass roles whitelisted.</div>
+                    ) : (
+                      Object.keys(localConfig.antinuke?.whitelistedRoles || {}).map(roleId => {
+                        const roleObj = roles.find(r => r.id === roleId);
+                        return (
+                          <div key={roleId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: '8px' }}>
+                            <span style={{ fontSize: '13px', color: roleObj?.color || '#fff', fontWeight: '500' }}>
+                              {roleObj ? roleObj.name : `Role (${roleId})`}
+                            </span>
+                            <button 
+                              onClick={() => handleRemoveWhitelistedRole(roleId)}
+                              style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
               </div>
 
-              <button className="glow-btn" onClick={() => onSaveConfig(localConfig)} style={{ marginTop: '16px', width: 'fit-content' }}>
-                <Save size={16} />
-                <span>Save Anti-Nuke Setup</span>
-              </button>
+              {/* Right Column: Threshold Configs */}
+              <div style={{ flex: '1 1 500px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#fff', margin: 0 }}>Protection Threshold Settings</h3>
+                
+                {/* Channel Delete Rule Card */}
+                <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <h4 style={{ fontSize: '15px', fontWeight: '600', color: '#fff', margin: '0 0 4px' }}>Mass Channel Deletion</h4>
+                    <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>Punish users who delete channel structures in rapid succession.</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '100px' }}>
+                      <label style={{ fontSize: '11px', color: '#9CA3AF', display: 'block', marginBottom: '6px' }}>Deletions Limit</label>
+                      <input 
+                        type="number" 
+                        className="glow-input" 
+                        min="1"
+                        max="100"
+                        value={localConfig.antinuke?.settings?.channelDelete?.limit || 3}
+                        onChange={(e) => handleUpdateAntiNukeSetting('channelDelete', 'limit', Number(e.target.value))}
+                      />
+                    </div>
+                    <div style={{ flex: 1.2, minWidth: '130px' }}>
+                      <label style={{ fontSize: '11px', color: '#9CA3AF', display: 'block', marginBottom: '6px' }}>Time Window (seconds)</label>
+                      <input 
+                        type="number" 
+                        className="glow-input" 
+                        min="1"
+                        max="300"
+                        value={Math.round((localConfig.antinuke?.settings?.channelDelete?.timeframe || 15000) / 1000)}
+                        onChange={(e) => handleUpdateAntiNukeSetting('channelDelete', 'timeframe', Number(e.target.value) * 1000)}
+                      />
+                    </div>
+                    <div style={{ flex: 1.2, minWidth: '120px' }}>
+                      <label style={{ fontSize: '11px', color: '#9CA3AF', display: 'block', marginBottom: '6px' }}>Automatic Action</label>
+                      <select 
+                        className="glow-input"
+                        value={localConfig.antinuke?.settings?.channelDelete?.action || 'demote'}
+                        onChange={(e) => handleUpdateAntiNukeSetting('channelDelete', 'action', e.target.value)}
+                      >
+                        <option value="none">Log Only</option>
+                        <option value="demote">Demote Roles</option>
+                        <option value="kick">Kick User</option>
+                        <option value="ban">Ban User</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Member Ban Rule Card */}
+                <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <h4 style={{ fontSize: '15px', fontWeight: '600', color: '#fff', margin: '0 0 4px' }}>Mass Member Banning</h4>
+                    <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>Punish compromised admin accounts initiating ban waves.</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '100px' }}>
+                      <label style={{ fontSize: '11px', color: '#9CA3AF', display: 'block', marginBottom: '6px' }}>Bans Limit</label>
+                      <input 
+                        type="number" 
+                        className="glow-input" 
+                        min="1"
+                        max="100"
+                        value={localConfig.antinuke?.settings?.memberBan?.limit || 3}
+                        onChange={(e) => handleUpdateAntiNukeSetting('memberBan', 'limit', Number(e.target.value))}
+                      />
+                    </div>
+                    <div style={{ flex: 1.2, minWidth: '130px' }}>
+                      <label style={{ fontSize: '11px', color: '#9CA3AF', display: 'block', marginBottom: '6px' }}>Time Window (seconds)</label>
+                      <input 
+                        type="number" 
+                        className="glow-input" 
+                        min="1"
+                        max="300"
+                        value={Math.round((localConfig.antinuke?.settings?.memberBan?.timeframe || 15000) / 1000)}
+                        onChange={(e) => handleUpdateAntiNukeSetting('memberBan', 'timeframe', Number(e.target.value) * 1000)}
+                      />
+                    </div>
+                    <div style={{ flex: 1.2, minWidth: '120px' }}>
+                      <label style={{ fontSize: '11px', color: '#9CA3AF', display: 'block', marginBottom: '6px' }}>Automatic Action</label>
+                      <select 
+                        className="glow-input"
+                        value={localConfig.antinuke?.settings?.memberBan?.action || 'demote'}
+                        onChange={(e) => handleUpdateAntiNukeSetting('memberBan', 'action', e.target.value)}
+                      >
+                        <option value="none">Log Only</option>
+                        <option value="demote">Demote Roles</option>
+                        <option value="kick">Kick User</option>
+                        <option value="ban">Ban User</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Role Creation Rule Card */}
+                <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <h4 style={{ fontSize: '15px', fontWeight: '600', color: '#fff', margin: '0 0 4px' }}>Mass Role Creation</h4>
+                    <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>Detect and punish administrators flooding the guild with role edits.</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '100px' }}>
+                      <label style={{ fontSize: '11px', color: '#9CA3AF', display: 'block', marginBottom: '6px' }}>Creation Limit</label>
+                      <input 
+                        type="number" 
+                        className="glow-input" 
+                        min="1"
+                        max="100"
+                        value={localConfig.antinuke?.settings?.roleCreate?.limit || 3}
+                        onChange={(e) => handleUpdateAntiNukeSetting('roleCreate', 'limit', Number(e.target.value))}
+                      />
+                    </div>
+                    <div style={{ flex: 1.2, minWidth: '130px' }}>
+                      <label style={{ fontSize: '11px', color: '#9CA3AF', display: 'block', marginBottom: '6px' }}>Time Window (seconds)</label>
+                      <input 
+                        type="number" 
+                        className="glow-input" 
+                        min="1"
+                        max="300"
+                        value={Math.round((localConfig.antinuke?.settings?.roleCreate?.timeframe || 15000) / 1000)}
+                        onChange={(e) => handleUpdateAntiNukeSetting('roleCreate', 'timeframe', Number(e.target.value) * 1000)}
+                      />
+                    </div>
+                    <div style={{ flex: 1.2, minWidth: '120px' }}>
+                      <label style={{ fontSize: '11px', color: '#9CA3AF', display: 'block', marginBottom: '6px' }}>Automatic Action</label>
+                      <select 
+                        className="glow-input"
+                        value={localConfig.antinuke?.settings?.roleCreate?.action || 'demote'}
+                        onChange={(e) => handleUpdateAntiNukeSetting('roleCreate', 'action', e.target.value)}
+                      >
+                        <option value="none">Log Only</option>
+                        <option value="demote">Demote Roles</option>
+                        <option value="kick">Kick User</option>
+                        <option value="ban">Ban User</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rogue Bot Invite Rule Card */}
+                <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <h4 style={{ fontSize: '15px', fontWeight: '600', color: '#fff', margin: '0 0 4px' }}>Rogue Bot Invitations</h4>
+                    <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0 }}>Detect and automatically ban unapproved external bots and their inviter.</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '150px' }}>
+                      <label style={{ fontSize: '11px', color: '#9CA3AF', display: 'block', marginBottom: '6px' }}>Automatic Action (Bot & Inviter)</label>
+                      <select 
+                        className="glow-input"
+                        value={localConfig.antinuke?.settings?.botAdd?.action || 'ban'}
+                        onChange={(e) => handleUpdateAntiNukeSetting('botAdd', 'action', e.target.value)}
+                      >
+                        <option value="none">Log Only</option>
+                        <option value="kick">Kick</option>
+                        <option value="ban">Ban</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <button 
+                  className="glow-btn" 
+                  onClick={() => onSaveConfig(localConfig)} 
+                  style={{ width: '100%', padding: '14px', fontSize: '14px', marginTop: '8px' }}
+                >
+                  <Save size={16} />
+                  <span>Save Anti-Nuke Configurations</span>
+                </button>
+
+              </div>
             </div>
+
           </div>
         )}
 

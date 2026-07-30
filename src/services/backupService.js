@@ -11,6 +11,9 @@ export class BackupService {
      * Create a backup snapshot of a guild
      */
     static async createBackup(guild, creatorId, backupName = null) {
+        if (!pgDb.isConnected || !pgDb.pool) {
+            return { success: false, error: 'Database is not connected. PostgreSQL database is required for Backup/Restore features.' };
+        }
         try {
             const backupId = generateBackupId();
             const defaultName = backupName || `${guild.name} Backup`;
@@ -102,6 +105,7 @@ export class BackupService {
      * Retrieve a specific backup
      */
     static async getBackup(backupId) {
+        if (!pgDb.isConnected || !pgDb.pool) return null;
         try {
             const result = await pgDb.pool.query(
                 'SELECT * FROM guild_backups WHERE id = $1',
@@ -119,6 +123,7 @@ export class BackupService {
      * List all backups in a guild
      */
     static async listBackups(guildId) {
+        if (!pgDb.isConnected || !pgDb.pool) return [];
         try {
             const result = await pgDb.pool.query(
                 'SELECT id, backup_name, created_by, created_at FROM guild_backups WHERE guild_id = $1 ORDER BY created_at DESC',
@@ -135,6 +140,7 @@ export class BackupService {
      * Delete a backup
      */
     static async deleteBackup(backupId) {
+        if (!pgDb.isConnected || !pgDb.pool) return false;
         try {
             const result = await pgDb.pool.query(
                 'DELETE FROM guild_backups WHERE id = $1 RETURNING id',
@@ -151,6 +157,9 @@ export class BackupService {
      * Restore a guild to a backup snapshot state
      */
     static async restoreBackup(guild, backupId) {
+        if (!pgDb.isConnected || !pgDb.pool) {
+            return { success: false, error: 'Database is not connected. PostgreSQL database is required for Backup/Restore features.' };
+        }
         try {
             const backup = await this.getBackup(backupId);
             if (!backup) {
