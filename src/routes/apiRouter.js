@@ -559,5 +559,35 @@ export default (client) => {
         }
     });
 
+    // Send a server announcement broadcast
+    router.post('/guilds/:guildId/broadcast', authMiddleware, adminGuildMiddleware, async (req, res) => {
+        try {
+            const guild = client.guilds.cache.get(req.params.guildId);
+            if (!guild) {
+                return res.status(404).json({ error: 'Bot is not present in this guild' });
+            }
+
+            const { channelId, message } = req.body;
+            if (!channelId || !message) {
+                return res.status(400).json({ error: 'Missing channelId or message' });
+            }
+
+            const targetChannel = guild.channels.cache.get(channelId);
+            if (!targetChannel || targetChannel.type !== ChannelType.GuildText) {
+                return res.status(400).json({ error: 'Target channel must be a valid text channel' });
+            }
+
+            // Send the announcement
+            const sentMessage = await targetChannel.send({ content: message });
+
+            logger.info(`Dashboard Broadcast sent by user ${req.user.id} to channel ${channelId} in guild ${req.params.guildId}`);
+
+            res.json({ success: true, messageId: sentMessage.id });
+        } catch (error) {
+            logger.error(`Error sending broadcast for guild ${req.params.guildId}:`, error.message);
+            res.status(500).json({ error: error.message || 'Failed to send broadcast' });
+        }
+    });
+
     return router;
 };

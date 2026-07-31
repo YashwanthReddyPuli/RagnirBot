@@ -17,7 +17,8 @@ import {
   Fingerprint,
   Star,
   Mic,
-  Gift
+  Gift,
+  Megaphone
 } from 'lucide-react';
 import GlowToggle from '../components/GlowToggle';
 import DiscordPreview from '../components/DiscordPreview';
@@ -146,6 +147,46 @@ export default function DashboardPanel({
       }
     })
     .catch(() => triggerAlert('error', 'Network error launching giveaway.'));
+  };
+
+  // Server Broadcast states
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastChannelId, setBroadcastChannelId] = useState('');
+
+  // Default broadcast channel
+  useEffect(() => {
+    if (channels.length > 0 && !broadcastChannelId) {
+      setBroadcastChannelId(channels[0].id);
+    }
+  }, [channels, broadcastChannelId]);
+
+  const handleSendBroadcast = () => {
+    if (!broadcastMessage || !broadcastChannelId) {
+      triggerAlert('error', 'Please write a message and select a target channel.');
+      return;
+    }
+
+    fetch(`/api/guilds/${guild.id}/broadcast`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        channelId: broadcastChannelId,
+        message: broadcastMessage
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        triggerAlert('success', 'Broadcast message delivered to your server!');
+        setBroadcastMessage('');
+      } else {
+        triggerAlert('error', `Failed to send broadcast: ${data.error}`);
+      }
+    })
+    .catch(() => triggerAlert('error', 'Network error sending broadcast.'));
   };
 
   // Sync props to state
@@ -790,6 +831,7 @@ export default function DashboardPanel({
             {renderSidebarItem('moderation', 'Moderation Warnings', ShieldAlert)}
             {renderSidebarItem('backups', 'Server Backups', Database)}
             {renderSidebarItem('settings', 'Server Settings', LayoutDashboard)}
+            {renderSidebarItem('broadcast', 'Server Broadcast', Megaphone)}
           </div>
 
           {/* Exit Link */}
@@ -2554,6 +2596,125 @@ export default function DashboardPanel({
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* SERVER BROADCAST TAB */}
+        {activeTab === 'broadcast' && (
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 8px' }}>Server Broadcast</h2>
+              <p style={{ color: '#9CA3AF', fontSize: '14px', margin: 0 }}>Send announcements and formatted messages directly to any channel in your server using standard Discord markdown formatting.</p>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
+              {/* Message Composer */}
+              <div className="glass-panel" style={{ flex: 1, minWidth: '400px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Megaphone size={20} style={{ color: '#EF4444' }} />
+                  <span>Broadcast Composer</span>
+                </h3>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Target Text Channel</label>
+                  <select 
+                    className="glow-input"
+                    value={broadcastChannelId}
+                    onChange={(e) => setBroadcastChannelId(e.target.value)}
+                  >
+                    {channels.map(ch => (
+                      <option key={ch.id} value={ch.id}>#{ch.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Message Content (Supports Discord Markdown)</label>
+                  <textarea 
+                    className="glow-input"
+                    rows={8}
+                    placeholder={`Write your message here...
+Use # for large headers, ** for bold, * for italics, or \` for code blocks!`}
+                    value={broadcastMessage}
+                    onChange={(e) => setBroadcastMessage(e.target.value)}
+                    style={{ fontFamily: 'monospace' }}
+                  />
+                </div>
+
+                <button className="glow-btn" onClick={handleSendBroadcast} style={{ marginTop: '12px' }}>
+                  <Megaphone size={16} />
+                  <span>Send Broadcast</span>
+                </button>
+              </div>
+
+              {/* Real-time Discord-like Preview */}
+              <div style={{ width: '380px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', margin: 0 }}>👀 Live Discord Preview</h3>
+                  <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0, lineHeight: 1.5 }}>
+                    See a preview of how your message will look to server members.
+                  </p>
+                  
+                  {/* Discord Chat Bubble Mock */}
+                  <div style={{
+                    backgroundColor: '#313338',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    border: '1px solid rgba(255,255,255,0.05)',
+                    display: 'flex',
+                    gap: '16px',
+                    alignItems: 'flex-start',
+                    fontFamily: 'sans-serif'
+                  }}>
+                    {/* Bot Avatar */}
+                    <div style={{
+                      height: '40px',
+                      width: '40px',
+                      borderRadius: '50%',
+                      backgroundColor: '#EF4444',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '14px',
+                      fontWeight: '800',
+                      color: '#fff',
+                      flexShrink: 0
+                    }}>
+                      R
+                    </div>
+                    {/* Message Body */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontWeight: '600', color: '#f2f3f5', fontSize: '14px' }}>Ragnir Bot</span>
+                        <span style={{
+                          backgroundColor: '#5865F2',
+                          color: '#fff',
+                          fontSize: '9px',
+                          fontWeight: '800',
+                          padding: '1px 4px',
+                          borderRadius: '3px',
+                          textTransform: 'uppercase'
+                        }}>Bot</span>
+                        <span style={{ color: '#949ba4', fontSize: '11px' }}>Today at {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                      </div>
+                      <div style={{ 
+                        color: '#dbdee1', 
+                        fontSize: '14px', 
+                        lineHeight: '1.4', 
+                        whiteSpace: 'pre-wrap', 
+                        wordBreak: 'break-word' 
+                      }}>
+                        {broadcastMessage || <span style={{ color: '#949ba4', fontStyle: 'italic' }}>Your message will appear here...</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: '11px', color: '#64748B', lineHeight: '1.5', marginTop: '8px' }}>
+                    💡 <em>Note: Custom Discord formatting like headers (#), bold (**), or list tags will be fully processed and styled when sent to the server.</em>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
