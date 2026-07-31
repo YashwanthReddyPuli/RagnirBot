@@ -109,6 +109,9 @@ export default {
     )
     .addSubcommand(subcmd =>
       subcmd.setName('panel').setDescription('Open the interactive Anti-Nuke Control Panel')
+    )
+    .addSubcommand(subcmd =>
+      subcmd.setName('config').setDescription('Display the current Anti-Nuke configurations')
     ),
 
   category: 'Security',
@@ -167,6 +170,33 @@ export default {
     }
 
     try {
+      if (subcommand === 'config') {
+        const antinuke = guildConfig.antinuke;
+        const status = antinuke.enabled ? '🟢 **Enabled**' : '🔴 **Disabled**';
+        const logChannel = antinuke.logChannelId ? `<#${antinuke.logChannelId}>` : '`None`';
+        const extraOwners = antinuke.extraOwners?.map(id => `<@${id}>`).join(', ') || 'None';
+
+        const embed = new EmbedBuilder()
+          .setTitle('🛡️ Anti-Nuke System Configuration')
+          .setColor('#ED4245')
+          .addFields(
+            { name: 'Status', value: status, inline: true },
+            { name: 'Log Channel', value: logChannel, inline: true },
+            { name: 'Extra Owners', value: extraOwners, inline: false }
+          )
+          .setTimestamp();
+
+        // Print limits for each type of action
+        const settings = antinuke.settings || {};
+        const limitFields = Object.entries(settings).map(([event, value]) => {
+          return `• **${event}**: Limit: \`${value.limit}\` | Timeframe: \`${value.timeframe / 1000}s\` | Action: \`${value.action}\``;
+        }).join('\n');
+
+        embed.addFields({ name: 'Configuration Limits', value: limitFields || 'None' });
+
+        return await InteractionHelper.universalReply(interaction, { embeds: [embed] });
+      }
+
       if (subcommand === 'enable') {
         guildConfig.antinuke.enabled = true;
         await setGuildConfig(client, guildId, guildConfig);

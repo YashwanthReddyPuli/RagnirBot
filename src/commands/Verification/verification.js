@@ -61,6 +61,11 @@ export default {
             subcommand
                 .setName("dashboard")
                 .setDescription("Open the verification system configuration dashboard")
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName("config")
+                .setDescription("View the current verification system configuration")
         ),
 
     async execute(interaction, config, client) {
@@ -78,6 +83,8 @@ export default {
             }
 
             switch (subcommand) {
+                case "config":
+                    return await handleConfig(interaction, guild, client);
                 case "setup":
                     return await handleSetup(interaction, guild, client);
                 case "remove":
@@ -259,6 +266,31 @@ async function handleRemove(interaction, guild, client) {
             { command: 'verification', subcommand: 'remove' }
         );
     }
+}
+
+async function handleConfig(interaction, guild, client) {
+    await InteractionHelper.safeDefer(interaction);
+    const guildConfig = await getGuildConfig(client, guild.id);
+    
+    const v = guildConfig.verification || {};
+    const status = v.enabled ? '🟢 **Enabled**' : '🔴 **Disabled**';
+    const channel = v.channelId ? `<#${v.channelId}>` : '`None`';
+    const role = v.roleId ? `<@&${v.roleId}>` : '`None`';
+    const btnText = v.buttonText || botConfig.verification.defaultButtonText;
+    const msg = v.message || botConfig.verification.defaultMessage;
+
+    const embed = createEmbed({
+        title: '✅ Verification System Configuration',
+        color: 'info'
+    }).addFields(
+        { name: 'System Status', value: status, inline: true },
+        { name: 'Verification Channel', value: channel, inline: true },
+        { name: 'Verified Role Granted', value: role, inline: true },
+        { name: 'Button Text Label', value: `\`${btnText}\``, inline: true },
+        { name: 'Panel Text Message', value: `\`\`\`\n${msg}\n\`\`\``, inline: false }
+    );
+
+    return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
 }
 
 

@@ -7,41 +7,16 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 export default {
     data: new SlashCommandBuilder()
         .setName('banner')
-        .setDescription("Retrieve and display a user's profile banner or the server's banner.")
+        .setDescription("Retrieve and display a user's profile banner.")
         .addUserOption(option => 
             option.setName('target')
                 .setDescription('The user whose banner you want to retrieve')
-                .setRequired(false)
-        )
-        .addBooleanOption(option =>
-            option.setName('server')
-                .setDescription('Get the server banner instead')
                 .setRequired(false)
         ),
 
     async execute(interaction, config, client) {
         try {
             await InteractionHelper.safeDefer(interaction);
-
-            const getGuildBanner = interaction.options.getBoolean('server') || false;
-            
-            if (getGuildBanner) {
-                const guild = interaction.guild;
-                const bannerUrl = guild.bannerURL({ size: 1024 });
-
-                if (!bannerUrl) {
-                    return await InteractionHelper.safeEditReply(interaction, {
-                        content: `❌ **${guild.name}** does not have a server banner set.`
-                    });
-                }
-
-                const embed = createEmbed({
-                    title: `🖼️ Server Banner: ${guild.name}`,
-                    color: 'primary'
-                }).setImage(bannerUrl);
-
-                return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
-            }
 
             const targetUserRaw = interaction.options.getUser('target') || interaction.user;
             
@@ -57,6 +32,7 @@ export default {
 
             const embed = createEmbed({
                 title: `🖼️ Profile Banner: ${targetUser.username}`,
+                description: `[Download Link](${bannerUrl})`,
                 color: 'primary'
             }).setImage(bannerUrl);
 

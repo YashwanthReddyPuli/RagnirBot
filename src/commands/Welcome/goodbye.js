@@ -13,6 +13,10 @@ export default {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .addSubcommand(subcommand =>
             subcommand
+                .setName('config')
+                .setDescription('View the current goodbye configuration'))
+        .addSubcommand(subcommand =>
+            subcommand
                 .setName('setup')
                 .setDescription('Set up the goodbye message')
                 .addChannelOption(option =>
@@ -54,6 +58,29 @@ export default {
         }
 
         const subcommand = options.getSubcommand();
+
+        if (subcommand === 'config') {
+            const existingConfig = await getWelcomeConfig(client, guild.id);
+            const status = existingConfig?.goodbyeEnabled ? '🟢 **Enabled**' : '🔴 **Disabled**';
+            const channel = existingConfig?.goodbyeChannelId ? `<#${existingConfig.goodbyeChannelId}>` : '`None`';
+            const leaveMsg = existingConfig?.leaveMessage || '`None`';
+            const leaveImg = existingConfig?.leaveEmbed?.image?.url || '`None`';
+            const ping = existingConfig?.goodbyePing ? '✅ Yes' : '❌ No';
+
+            const embed = new EmbedBuilder()
+                .setColor(getColor('error'))
+                .setTitle('👋 Goodbye System Configuration')
+                .addFields(
+                    { name: 'Status', value: status, inline: true },
+                    { name: 'Goodbye Channel', value: channel, inline: true },
+                    { name: 'Ping User', value: ping, inline: true },
+                    { name: 'Goodbye Message Template', value: `\`\`\`\n${leaveMsg}\n\`\`\``, inline: false },
+                    { name: 'Goodbye Image URL', value: leaveImg, inline: false }
+                )
+                .setTimestamp();
+
+            return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+        }
 
         if (subcommand === 'setup') {
             const channel = options.getChannel('channel');

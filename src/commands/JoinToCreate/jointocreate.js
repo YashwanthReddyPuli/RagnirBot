@@ -70,6 +70,11 @@ export default {
                         .setRequired(true)
                         .addChannelTypes(ChannelType.GuildVoice)
                 )
+        )
+        .addSubcommand((subcommand) =>
+            subcommand
+                .setName("config")
+                .setDescription("View all active Join to Create configurations")
         ),
     category: "utility",
 
@@ -89,7 +94,10 @@ export default {
 
             let responseEmbed;
 
-            if (subcommand === "setup") {
+            if (subcommand === "config") {
+                await handleConfigListSubcommand(interaction, client);
+                return;
+            } else if (subcommand === "setup") {
                 await handleSetupSubcommand(interaction, client);
                 return;
             } else if (subcommand === "dashboard") {
@@ -699,6 +707,45 @@ async function handleChannelDeletion(interaction, triggerChannel, currentConfig,
             `Deletion error: ${error.message}`,
             ErrorTypes.UNKNOWN,
             'An error occurred while removing the channel.'
+        );
+    }
+}
+
+async function handleConfigListSubcommand(interaction, client) {
+    try {
+        const guildId = interaction.guild.id;
+        const currentConfig = await getConfiguration(client, guildId);
+
+        const embed = new EmbedBuilder()
+            .setTitle('🔊 Join to Create Configuration')
+            .setDescription(`Configuration status for **${interaction.guild.name}**`)
+            .setColor(getColor('info'))
+            .setTimestamp();
+
+        if (!currentConfig.triggerChannels || currentConfig.triggerChannels.length === 0) {
+            embed.setDescription('🔴 **Disabled** - No trigger channels configured. Use `/jointocreate setup` to configure one.');
+        } else {
+            embed.setDescription('🟢 **Enabled**');
+            for (const chanId of currentConfig.triggerChannels) {
+                const chan = await interaction.guild.channels.fetch(chanId).catch(() => null);
+                if (chan) {
+                    const chConf = await getChannelConfiguration(client, guildId, chanId);
+                    const cc = chConf.channelConfig || {};
+                    embed.addFields({
+                        name: `Trigger Channel: #${chan.name}`,
+                        value: `• Name Template: \`${cc.nameTemplate || "{username}'s Room"}\`\n• User Limit: \`${cc.userLimit || 'Unlimited'}\`\n• Bitrate: \`${(cc.bitrate || 64000) / 1000} kbps\``
+                    });
+                }
+            }
+        }
+
+        await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+    } catch (error) {
+        logger.error('Error listing jointocreate configurations:', error);
+        throw new RagnirBotError(
+            `Failed to list configs: ${error.message}`,
+            ErrorTypes.UNKNOWN,
+            'Failed to read configurations.'
         );
     }
 }

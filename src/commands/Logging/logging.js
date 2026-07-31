@@ -20,6 +20,11 @@ export default {
         )
         .addSubcommand((subcommand) =>
             subcommand
+                .setName('config')
+                .setDescription('View the current server logging configuration.'),
+        )
+        .addSubcommand((subcommand) =>
+            subcommand
                 .setName('setup')
                 .setDescription('Automatically create a dedicated logs category and channels for logging.'),
         )
@@ -102,6 +107,44 @@ export default {
 
             if (subcommand === 'dashboard') {
                 return await dashboard.execute(interaction, config, client);
+            }
+
+            if (subcommand === 'config') {
+                await InteractionHelper.safeDefer(interaction);
+                const { getGuildConfig } = await import('../../services/guildConfig.js');
+                const guildConfig = await getGuildConfig(client, interaction.guild.id);
+
+                const status = guildConfig.enableLogging ? '🟢 **Enabled**' : '🔴 **Disabled**';
+                const mainLogsChannel = guildConfig.logChannelId ? `<#${guildConfig.logChannelId}>` : '`None`';
+                const modLogsChannel = guildConfig.modLogChannelId ? `<#${guildConfig.modLogChannelId}>` : '`None`';
+                const ticketLogsChannel = guildConfig.ticketLogsChannelId ? `<#${guildConfig.ticketLogsChannelId}>` : '`None`';
+                const ticketTranscriptChannel = guildConfig.ticketTranscriptChannelId ? `<#${guildConfig.ticketTranscriptChannelId}>` : '`None`';
+                const messageLogsChannel = guildConfig.messageLogChannelId ? `<#${guildConfig.messageLogChannelId}>` : '`None`';
+                const memberLogsChannel = guildConfig.memberLogChannelId ? `<#${guildConfig.memberLogChannelId}>` : '`None`';
+                const levelingLogsChannel = guildConfig.levelingLogChannelId ? `<#${guildConfig.levelingLogChannelId}>` : '`None`';
+
+                const embed = createEmbed({
+                    title: '📝 Audit Logging Configuration',
+                    color: 'info'
+                }).addFields(
+                    { name: 'System Status', value: status, inline: true },
+                    { name: 'Main Logs Channel', value: mainLogsChannel, inline: true },
+                    { name: 'Moderation Logs Channel', value: modLogsChannel, inline: true },
+                    { name: 'Ticket Logs Channel', value: ticketLogsChannel, inline: true },
+                    { name: 'Ticket Transcripts Channel', value: ticketTranscriptChannel, inline: true },
+                    { name: 'Message Logs Channel', value: messageLogsChannel, inline: true },
+                    { name: 'Member Logs Channel', value: memberLogsChannel, inline: true },
+                    { name: 'Leveling Logs Channel', value: levelingLogsChannel, inline: true }
+                );
+
+                if (guildConfig.logging?.ignoredChannels?.length > 0) {
+                    embed.addFields({ name: 'Ignored Channels', value: guildConfig.logging.ignoredChannels.map(id => `<#${id}>`).join(', ') });
+                }
+                if (guildConfig.logging?.ignoredUsers?.length > 0) {
+                    embed.addFields({ name: 'Ignored Users', value: guildConfig.logging.ignoredUsers.map(id => `<@${id}>`).join(', ') });
+                }
+
+                return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
             }
 
             if (subcommand === 'setup' || subcommand === 'clear') {

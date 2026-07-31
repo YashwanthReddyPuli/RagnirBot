@@ -90,6 +90,11 @@ export default {
             subcommand
                 .setName("dashboard")
                 .setDescription("Open the interactive ticket system dashboard"),
+        )
+        .addSubcommand((subcommand) =>
+            subcommand
+                .setName("config")
+                .setDescription("View the current support ticket configuration"),
         ),
     category: "ticket",
 
@@ -125,6 +130,32 @@ export default {
 
         if (subcommand === "dashboard") {
             return ticketConfig.execute(interaction, config, client);
+        }
+
+        if (subcommand === "config") {
+            const guildConfig = await getGuildConfig(client, interaction.guildId);
+            const status = guildConfig.ticketPanelChannelId ? '🟢 **Enabled**' : '🔴 **Disabled**';
+            const panelChannel = guildConfig.ticketPanelChannelId ? `<#${guildConfig.ticketPanelChannelId}>` : '`None`';
+            const staffRole = guildConfig.ticketStaffRoleId ? `<@&${guildConfig.ticketStaffRoleId}>` : '`None`';
+            const category = guildConfig.ticketCategoryId ? `<#${guildConfig.ticketCategoryId}>` : '`None (Root)`';
+            const closedCategory = guildConfig.ticketClosedCategoryId ? `<#${guildConfig.ticketClosedCategoryId}>` : '`None (Root)`';
+            const limit = guildConfig.maxTicketsPerUser || 3;
+            const dmOnClose = guildConfig.dmOnClose ? '✅ Yes' : '❌ No';
+
+            const embed = createEmbed({
+                title: '🎫 Support Tickets Configuration',
+                color: 'info'
+            }).addFields(
+                { name: 'System Status', value: status, inline: true },
+                { name: 'Panel Channel', value: panelChannel, inline: true },
+                { name: 'Staff Support Role', value: staffRole, inline: true },
+                { name: 'Ticket Category', value: category, inline: true },
+                { name: 'Closed Tickets Category', value: closedCategory, inline: true },
+                { name: 'Max Active Tickets per User', value: limit.toString(), inline: true },
+                { name: 'Send DM on Close', value: dmOnClose, inline: true }
+            );
+
+            return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
         }
 
         if (subcommand === "setup") {

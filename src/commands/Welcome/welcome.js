@@ -13,6 +13,10 @@ export default {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .addSubcommand(subcommand =>
             subcommand
+                .setName('config')
+                .setDescription('View the current welcome configuration'))
+        .addSubcommand(subcommand =>
+            subcommand
                 .setName('setup')
                 .setDescription('Set up the welcome message')
                 .addChannelOption(option =>
@@ -59,6 +63,29 @@ export default {
         }
 
         const subcommand = options.getSubcommand();
+
+        if (subcommand === 'config') {
+            const existingConfig = await getWelcomeConfig(client, guild.id);
+            const status = existingConfig?.enabled ? '🟢 **Enabled**' : '🔴 **Disabled**';
+            const channel = existingConfig?.channelId ? `<#${existingConfig.channelId}>` : '`None`';
+            const welcomeMsg = existingConfig?.welcomeMessage || '`None`';
+            const welcomeImg = existingConfig?.welcomeImage || '`None`';
+            const ping = existingConfig?.welcomePing ? '✅ Yes' : '❌ No';
+
+            const embed = new EmbedBuilder()
+                .setColor(getColor('info'))
+                .setTitle('👋 Welcome System Configuration')
+                .addFields(
+                    { name: 'Status', value: status, inline: true },
+                    { name: 'Welcome Channel', value: channel, inline: true },
+                    { name: 'Ping User', value: ping, inline: true },
+                    { name: 'Welcome Message Template', value: `\`\`\`\n${welcomeMsg}\n\`\`\``, inline: false },
+                    { name: 'Welcome Image URL', value: welcomeImg, inline: false }
+                )
+                .setTimestamp();
+
+            return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+        }
 
         if (subcommand === 'setup') {
             const channel = options.getChannel('channel');
