@@ -118,6 +118,12 @@ class MockInteraction {
     if (payload.flags) delete payload.flags;
     return await this.channel.send(payload);
   }
+
+  async deleteReply() {
+    if (this.replyMessage) {
+      await this.replyMessage.delete().catch(() => null);
+    }
+  }
 }
 
 const MESSAGE_XP_RATE_LIMIT_ATTEMPTS = 12;

@@ -147,4 +147,15 @@ export const helpPaginationButton = {
     },
 };
 
+export const helpCloseButton = {
+    name: "help-close",
+    async execute(interaction, client) {
+        try {
+            await interaction.message.delete().catch(() => null);
+        } catch (error) {
+            logger.debug('Failed to delete help message on close click:', error.message);
+        }
+    }
+};
+
 

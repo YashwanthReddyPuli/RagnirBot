@@ -46,13 +46,13 @@ const CATEGORY_ICONS = {
 
 
 export async function createInitialHelpMenu(client) {
-    const commandsPath = path.join(__dirname, "../../commands");
-    const categoryDirs = (
-        await fs.readdir(commandsPath, { withFileTypes: true })
-    )
-        .filter((dirent) => dirent.isDirectory())
-        .map((dirent) => dirent.name)
-        .sort();
+    const categoryDirs = Array.from(
+        new Set(
+            Array.from(client.commands.values())
+                .map(cmd => cmd.category)
+                .filter(Boolean)
+        )
+    ).sort();
 
     const options = [
         {
@@ -174,9 +174,17 @@ export async function createInitialHelpMenu(client) {
         options,
     );
 
+    const closeButton = new ButtonBuilder()
+        .setCustomId("help-close")
+        .setLabel("Close Menu")
+        .setStyle(ButtonStyle.Danger)
+        .setEmoji("❌");
+
+    const buttonRow = new ActionRowBuilder().addComponents(closeButton);
+
     return {
         embeds: [embed],
-        components: [selectRow],
+        components: [selectRow, buttonRow],
     };
 }
 
@@ -199,16 +207,7 @@ export default {
 
         setTimeout(async () => {
             try {
-                const closedEmbed = createEmbed({
-                    title: "Help menu closed",
-                    description: "Help menu has been closed, use /help again.",
-                    color: "secondary",
-                });
-
-                await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [closedEmbed],
-                    components: [],
-                });
+                await interaction.deleteReply().catch(() => null);
             } catch (error) {
                 
             }

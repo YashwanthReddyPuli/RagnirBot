@@ -117,33 +117,14 @@ async function createCategoryCommandsMenu(category, client) {
 
     const categoryCommands = [];
 
-    try {
-        const categoryPath = path.join(__dirname, "../commands", category);
-        const commandFiles = (await fs.readdir(categoryPath))
-            .filter((file) => file.endsWith(".js"))
-            .sort();
-
-        for (const file of commandFiles) {
-            const filePath = path.join(categoryPath, file);
-            const commandModule = await import(`file://${filePath}`);
-            const command = commandModule.default;
+    for (const command of client.commands.values()) {
+        if (command.category?.toLowerCase() === category.toLowerCase()) {
             const commandData = normalizeCommandData(command);
-
             if (commandData) {
-                if (
-                    commandData.name === "help" ||
-                    commandData.name === "commandlist"
-                )
-                    continue;
-
+                if (commandData.name === "help" || commandData.name === "commandlist") continue;
                 categoryCommands.push(...buildHelpEntries(command, categoryName));
             }
         }
-    } catch (error) {
-        logger.error(
-            `Error reading commands from category ${category}:`,
-            error,
-        );
     }
 
     categoryCommands.sort((a, b) => a.displayName.localeCompare(b.displayName));
@@ -221,7 +202,15 @@ async function createCategoryCommandsMenu(category, client) {
         false,
     );
 
-    const buttonRow = new ActionRowBuilder().addComponents(backButton);
+    const closeButton = createButton(
+        "help-close",
+        "Close Menu",
+        "danger",
+        "❌",
+        false,
+    );
+
+    const buttonRow = new ActionRowBuilder().addComponents(backButton, closeButton);
 
     return {
         embeds: [embed],
@@ -233,50 +222,15 @@ export async function createAllCommandsMenu(page = 1, client) {
     const commandsPerPage = 45;
     const allCommands = [];
 
-    const commandsPath = path.join(__dirname, "../commands");
-    const categoryDirs = (
-        await fs.readdir(commandsPath, { withFileTypes: true })
-    )
-        .filter((dirent) => dirent.isDirectory())
-        .map((dirent) => dirent.name)
-        .sort();
+    for (const command of client.commands.values()) {
+        const commandData = normalizeCommandData(command);
+        if (commandData) {
+            if (commandData.name === "help" || commandData.name === "commandlist") continue;
+            const categoryName = command.category
+                ? command.category.charAt(0).toUpperCase() + command.category.slice(1).toLowerCase()
+                : "Utility";
 
-    for (const category of categoryDirs) {
-        try {
-            const categoryPath = path.join(
-                __dirname,
-                "../commands",
-                category,
-            );
-            const commandFiles = (await fs.readdir(categoryPath))
-                .filter((file) => file.endsWith(".js"))
-                .sort();
-
-            for (const file of commandFiles) {
-                const filePath = path.join(categoryPath, file);
-                const commandModule = await import(`file://${filePath}`);
-                const command = commandModule.default;
-                const commandData = normalizeCommandData(command);
-
-                if (commandData) {
-                    if (
-                        commandData.name === "help" ||
-                        commandData.name === "commandlist"
-                    )
-                        continue;
-
-                    const categoryName =
-                        category.charAt(0).toUpperCase() +
-                        category.slice(1).toLowerCase();
-
-                    allCommands.push(...buildHelpEntries(command, categoryName));
-                }
-            }
-        } catch (error) {
-            logger.error(
-                `Error reading commands from category ${category}:`,
-                error,
-            );
+            allCommands.push(...buildHelpEntries(command, categoryName));
         }
     }
 
@@ -353,7 +307,15 @@ export async function createAllCommandsMenu(page = 1, client) {
         false,
     );
 
-    const buttonRow = new ActionRowBuilder().addComponents(backButton);
+    const closeButton = createButton(
+        "help-close",
+        "Close Menu",
+        "danger",
+        "❌",
+        false,
+    );
+
+    const buttonRow = new ActionRowBuilder().addComponents(backButton, closeButton);
     components.push(buttonRow);
 
     return {
