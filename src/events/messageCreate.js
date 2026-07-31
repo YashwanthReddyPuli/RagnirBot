@@ -136,6 +136,41 @@ export default {
     try {
       if (message.author.bot || !message.guild) return;
 
+      // 1. Remove AFK status if user is currently AFK
+      const authorAfkKey = `guild:${message.guild.id}:afk:${message.author.id}`;
+      const authorAfk = await client.db.get(authorAfkKey);
+      if (authorAfk) {
+        await client.db.delete(authorAfkKey);
+        
+        // Restore nickname if [AFK] prefix exists
+        if (message.member && message.member.manageable) {
+          const currentNickname = message.member.nickname || '';
+          if (currentNickname.startsWith('[AFK] ')) {
+            const restored = currentNickname.replace('[AFK] ', '');
+            await message.member.setNickname(restored).catch(() => null);
+          }
+        }
+
+        await message.reply(`👋 Welcome back <@${message.author.id}>! I have removed your AFK status.`).catch(() => null);
+      }
+
+      // 2. Alert users if they mention someone who is AFK
+      if (message.mentions.users.size > 0) {
+        for (const [userId, mentionedUser] of message.mentions.users) {
+          if (userId === message.author.id) continue;
+          
+          const mentionedAfkKey = `guild:${message.guild.id}:afk:${userId}`;
+          const mentionedAfk = await client.db.get(mentionedAfkKey);
+          if (mentionedAfk) {
+            const wentAfkAt = Math.floor(mentionedAfk.timestamp / 1000);
+            await message.reply({
+              content: `💤 **${mentionedUser.username}** is AFK: ${mentionedAfk.reason} - <t:${wentAfkAt}:R>`,
+              allowedMentions: { repliedUser: false }
+            }).catch(() => null);
+          }
+        }
+      }
+
       const isAutomodded = await AutoModService.processMessage(message, client);
       if (isAutomodded) return;
 
