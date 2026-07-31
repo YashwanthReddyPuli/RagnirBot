@@ -14,7 +14,8 @@ import {
   ListFilter,
   UserCheck,
   Zap,
-  Fingerprint
+  Fingerprint,
+  Star
 } from 'lucide-react';
 import GlowToggle from '../components/GlowToggle';
 import DiscordPreview from '../components/DiscordPreview';
@@ -105,8 +106,8 @@ export default function DashboardPanel({
         <div style={{
           width: '32px',
           height: '32px',
-          border: '3px solid rgba(124, 58, 237, 0.1)',
-          borderTopColor: '#7C3AED',
+          border: '3px solid rgba(239, 68, 68, 0.1)',
+          borderTopColor: '#EF4444',
           borderRadius: '50%',
           animation: 'spin 1s linear infinite',
           marginBottom: '16px'
@@ -555,336 +556,296 @@ export default function DashboardPanel({
     .catch(() => triggerAlert('error', 'Failed to connect to restore engine.'));
   };
 
+  const renderSidebarItem = (tabId, label, icon) => {
+    const Icon = icon;
+    const isActive = activeTab === tabId;
+    return (
+      <button 
+        key={tabId}
+        onClick={() => setActiveTab(tabId)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          width: '100%',
+          padding: '10px 14px',
+          background: isActive ? 'rgba(239, 68, 68, 0.1)' : 'transparent',
+          border: isActive ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid transparent',
+          borderRadius: '12px',
+          color: isActive ? '#fff' : '#94A3B8',
+          cursor: 'pointer',
+          fontWeight: '600',
+          fontSize: '13px',
+          textAlign: 'left',
+          transition: 'all 0.2s ease',
+          boxSizing: 'border-box',
+          marginBottom: '2px'
+        }}
+      >
+        <Icon size={15} style={{ color: isActive ? '#EF4444' : '#64748B' }} />
+        <span>{label}</span>
+      </button>
+    );
+  };
+
   return (
     <div style={{
       display: 'flex',
       flex: 1,
       minHeight: '100vh',
-      backgroundColor: '#07080a',
-      boxSizing: 'border-box'
+      backgroundColor: '#020617',
+      boxSizing: 'border-box',
+      position: 'relative'
     }}>
+      {/* Liquid Background Elements */}
+      <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
+        <div style={{ position: 'absolute', top: '-10%', right: '-10%', width: '40%', height: '40%', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '50%', filter: 'blur(120px)' }} />
+        <div style={{ position: 'absolute', bottom: '10%', left: '-5%', width: '30%', height: '30%', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '50%', filter: 'blur(100px)' }} />
+      </div>
+
       {/* Sidebar Navigation */}
       <aside style={{
         width: '260px',
-        borderRight: '1px solid rgba(255, 255, 255, 0.03)',
-        background: 'rgba(11, 12, 16, 0.85)',
-        backdropFilter: 'blur(20px)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        background: 'rgba(10, 15, 30, 0.45)',
+        backdropFilter: 'blur(40px)',
         display: 'flex',
         flexDirection: 'column',
-        padding: '24px 16px',
-        gap: '24px',
-        boxSizing: 'border-box'
+        margin: '16px',
+        borderRadius: '24px',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+        zIndex: 1
       }}>
-        {/* Back Button */}
-        <button 
-          className="glow-btn-secondary" 
-          onClick={onBack}
-          style={{ width: '100%', padding: '10px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
-          <ArrowLeft size={16} />
-          <span>Back to Servers</span>
-        </button>
-
-        {/* Guild Info */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 8px' }}>
-          {getGuildIconUrl() ? (
-            <img 
-              src={getGuildIconUrl()} 
-              alt={guild.name} 
-              style={{ width: '36px', height: '36px', borderRadius: '50%' }}
-            />
-          ) : (
-            <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '50%',
-              backgroundColor: '#7C3AED',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: '700',
-              fontSize: '14px',
-              color: '#fff'
-            }}>
-              {guild.name.split(' ').map(w => w[0]).join('').substring(0, 3).toUpperCase()}
-            </div>
-          )}
-          <div style={{ overflow: 'hidden' }}>
-            <div style={{ fontWeight: '600', fontSize: '14px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', color: '#fff' }}>
-              {guild.name}
-            </div>
-            <div style={{ fontSize: '11px', color: '#10B981' }}>Settings Panel</div>
+        {/* Brand Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '24px 16px 12px 16px' }}>
+          <div style={{
+            height: '36px',
+            width: '36px',
+            borderRadius: '10px',
+            background: 'linear-gradient(to bottom right, #EF4444, #991B1B)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)',
+            border: '1px solid rgba(255, 255, 255, 0.1)'
+          }}>
+            <Shield size={20} style={{ color: '#fff' }} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '16px', fontWeight: '800', color: '#fff', letterSpacing: '0.5px' }}>RAGNIRBOT</span>
+            <span style={{ fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '2px', color: 'rgba(239, 68, 68, 0.8)' }}>DASHBOARD</span>
           </div>
         </div>
 
-        {/* Navigation Tabs List */}
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <button 
-            onClick={() => setActiveTab('overview')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              width: '100%',
-              padding: '12px 16px',
-              background: activeTab === 'overview' ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
-              border: activeTab === 'overview' ? '1px solid rgba(124, 58, 237, 0.2)' : '1px solid transparent',
-              borderRadius: '10px',
-              color: activeTab === 'overview' ? '#fff' : '#9CA3AF',
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '13px',
-              textAlign: 'left',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <LayoutDashboard size={16} />
-            <span>Overview</span>
-          </button>
+        {/* Guild Info */}
+        <div style={{ padding: '0 16px 16px 16px' }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '12px', 
+            padding: '12px', 
+            background: 'rgba(255,255,255,0.02)', 
+            borderRadius: '14px', 
+            border: '1px solid rgba(255,255,255,0.05)' 
+          }}>
+            {getGuildIconUrl() ? (
+              <img 
+                src={getGuildIconUrl()} 
+                alt={guild.name} 
+                style={{ width: '32px', height: '32px', borderRadius: '50%' }}
+              />
+            ) : (
+              <div style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                backgroundColor: '#EF4444',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: '700',
+                fontSize: '12px',
+                color: '#fff'
+              }}>
+                {guild.name.split(' ').map(w => w[0]).join('').substring(0, 3).toUpperCase()}
+              </div>
+            )}
+            <div style={{ overflow: 'hidden', flex: 1 }}>
+              <div style={{ fontWeight: '700', fontSize: '13px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', color: '#fff' }}>
+                {guild.name}
+              </div>
+              <div style={{ fontSize: '10px', color: '#10B981', fontWeight: '600' }}>Active Settings</div>
+            </div>
+          </div>
+        </div>
 
-          <button 
-            onClick={() => setActiveTab('welcome')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              width: '100%',
-              padding: '12px 16px',
-              background: activeTab === 'welcome' ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
-              border: activeTab === 'welcome' ? '1px solid rgba(124, 58, 237, 0.2)' : '1px solid transparent',
-              borderRadius: '10px',
-              color: activeTab === 'welcome' ? '#fff' : '#9CA3AF',
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '13px',
-              textAlign: 'left',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <MessageSquare size={16} />
-            <span>Welcome Setup</span>
-          </button>
+        {/* Navigation list */}
+        <nav className="no-scrollbar" style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '16px', 
+          padding: '0 16px 16px 16px',
+          flex: 1,
+          overflowY: 'auto'
+        }}>
+          {/* CORE SECTION */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {renderSidebarItem('overview', 'Overview', LayoutDashboard)}
+          </div>
 
-          <button 
-            onClick={() => setActiveTab('moderation')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              width: '100%',
-              padding: '12px 16px',
-              background: activeTab === 'moderation' ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
-              border: activeTab === 'moderation' ? '1px solid rgba(124, 58, 237, 0.2)' : '1px solid transparent',
-              borderRadius: '10px',
-              color: activeTab === 'moderation' ? '#fff' : '#9CA3AF',
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '13px',
-              textAlign: 'left',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <ShieldAlert size={16} />
-            <span>Moderation Warnings</span>
-          </button>
+          {/* SECURITY */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <p style={{ margin: '0 0 6px 10px', fontSize: '10px', fontWeight: '900', color: '#64748B', letterSpacing: '2px', textTransform: 'uppercase' }}>Security</p>
+            {renderSidebarItem('antinuke', 'Anti-Nuke Setup', Shield)}
+            {renderSidebarItem('automod', 'Auto-Moderation', Zap)}
+            {renderSidebarItem('verification', 'Verification Setup', Fingerprint)}
+          </div>
 
-          <button 
-            onClick={() => setActiveTab('logging')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              width: '100%',
-              padding: '12px 16px',
-              background: activeTab === 'logging' ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
-              border: activeTab === 'logging' ? '1px solid rgba(124, 58, 237, 0.2)' : '1px solid transparent',
-              borderRadius: '10px',
-              color: activeTab === 'logging' ? '#fff' : '#9CA3AF',
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '13px',
-              textAlign: 'left',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <ListFilter size={16} />
-            <span>Logging Config</span>
-          </button>
+          {/* ENGAGEMENT */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <p style={{ margin: '0 0 6px 10px', fontSize: '10px', fontWeight: '900', color: '#64748B', letterSpacing: '2px', textTransform: 'uppercase' }}>Engagement</p>
+            {renderSidebarItem('welcome', 'Welcome Setup', MessageSquare)}
+            {renderSidebarItem('reactionroles', 'Reaction Roles', UserCheck)}
+            {renderSidebarItem('vanity', 'Vanity Reward', Star)}
+          </div>
 
-          <button 
-            onClick={() => setActiveTab('antinuke')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              width: '100%',
-              padding: '12px 16px',
-              background: activeTab === 'antinuke' ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
-              border: activeTab === 'antinuke' ? '1px solid rgba(124, 58, 237, 0.2)' : '1px solid transparent',
-              borderRadius: '10px',
-              color: activeTab === 'antinuke' ? '#fff' : '#9CA3AF',
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '13px',
-              textAlign: 'left',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <Shield size={16} />
-            <span>Anti-Nuke Setup</span>
-          </button>
+          {/* UTILITY */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <p style={{ margin: '0 0 6px 10px', fontSize: '10px', fontWeight: '900', color: '#64748B', letterSpacing: '2px', textTransform: 'uppercase' }}>Utility / System</p>
+            {renderSidebarItem('logging', 'Logging Config', ListFilter)}
+            {renderSidebarItem('moderation', 'Moderation Warnings', ShieldAlert)}
+            {renderSidebarItem('backups', 'Server Backups', Database)}
+            {renderSidebarItem('settings', 'Server Settings', LayoutDashboard)}
+          </div>
 
+          {/* Exit Link */}
           <button 
-            onClick={() => setActiveTab('reactionroles')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              width: '100%',
-              padding: '12px 16px',
-              background: activeTab === 'reactionroles' ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
-              border: activeTab === 'reactionroles' ? '1px solid rgba(124, 58, 237, 0.2)' : '1px solid transparent',
-              borderRadius: '10px',
-              color: activeTab === 'reactionroles' ? '#fff' : '#9CA3AF',
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '13px',
-              textAlign: 'left',
-              transition: 'all 0.2s ease'
-            }}
+            className="glow-btn-secondary" 
+            onClick={onBack}
+            style={{ width: '100%', padding: '10px 14px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', marginTop: 'auto' }}
           >
-            <UserCheck size={16} />
-            <span>Reaction Roles</span>
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('backups')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              width: '100%',
-              padding: '12px 16px',
-              background: activeTab === 'backups' ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
-              border: activeTab === 'backups' ? '1px solid rgba(124, 58, 237, 0.2)' : '1px solid transparent',
-              borderRadius: '10px',
-              color: activeTab === 'backups' ? '#fff' : '#9CA3AF',
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '13px',
-              textAlign: 'left',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <Database size={16} />
-            <span>Server Backups</span>
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('vanity')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              width: '100%',
-              padding: '12px 16px',
-              background: activeTab === 'vanity' ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
-              border: activeTab === 'vanity' ? '1px solid rgba(124, 58, 237, 0.2)' : '1px solid transparent',
-              borderRadius: '10px',
-              color: activeTab === 'vanity' ? '#fff' : '#9CA3AF',
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '13px',
-              textAlign: 'left',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <UserCheck size={16} />
-            <span>Vanity Reward</span>
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('settings')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              width: '100%',
-              padding: '12px 16px',
-              background: activeTab === 'settings' ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
-              border: activeTab === 'settings' ? '1px solid rgba(124, 58, 237, 0.2)' : '1px solid transparent',
-              borderRadius: '10px',
-              color: activeTab === 'settings' ? '#fff' : '#9CA3AF',
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '13px',
-              textAlign: 'left',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <LayoutDashboard size={16} />
-            <span>Server Settings</span>
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('automod')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              width: '100%',
-              padding: '12px 16px',
-              background: activeTab === 'automod' ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
-              border: activeTab === 'automod' ? '1px solid rgba(124, 58, 237, 0.2)' : '1px solid transparent',
-              borderRadius: '10px',
-              color: activeTab === 'automod' ? '#fff' : '#9CA3AF',
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '13px',
-              textAlign: 'left',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <Zap size={16} />
-            <span>Auto-Moderation</span>
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('verification')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              width: '100%',
-              padding: '12px 16px',
-              background: activeTab === 'verification' ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
-              border: activeTab === 'verification' ? '1px solid rgba(124, 58, 237, 0.2)' : '1px solid transparent',
-              borderRadius: '10px',
-              color: activeTab === 'verification' ? '#fff' : '#9CA3AF',
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '13px',
-              textAlign: 'left',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <Fingerprint size={16} />
-            <span>Verification Setup</span>
+            <ArrowLeft size={14} />
+            <span>Back to Servers</span>
           </button>
         </nav>
+
+        {/* User Profile Widget */}
+        <div style={{ padding: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(239, 68, 68, 0.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ height: '32px', width: '32px', borderRadius: '50%', backgroundColor: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(239, 68, 68, 0.2)', overflow: 'hidden' }}>
+              <UserCheck size={16} style={{ color: '#EF4444' }} />
+            </div>
+            <div style={{ overflow: 'hidden' }}>
+              <p style={{ fontSize: '12px', fontWeight: '700', color: '#fff', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Administrator</p>
+              <p style={{ fontSize: '9px', fontWeight: '800', textTransform: 'uppercase', color: 'rgba(239, 68, 68, 0.6)', margin: 0, letterSpacing: '1.5px' }}>Active Session</p>
+            </div>
+          </div>
+        </div>
       </aside>
 
       {/* Main Panel Content */}
       <main style={{
         flex: 1,
-        padding: '40px',
+        padding: '32px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '32px',
+        gap: '24px',
         maxHeight: '100vh',
         overflowY: 'auto',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        zIndex: 1
       }}>
+        {/* Top Navbar */}
+        <header style={{
+          height: '80px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          background: 'rgba(255, 255, 255, 0.01)',
+          backdropFilter: 'blur(30px)',
+          padding: '0 32px',
+          borderRadius: '32px',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.2)',
+          marginBottom: '12px',
+          flexShrink: 0
+        }}>
+          {/* Search bar */}
+          <div style={{ display: 'flex', alignItems: 'center', width: '320px', position: 'relative' }}>
+            <span style={{ position: 'absolute', left: '16px', color: '#64748B', display: 'flex', alignItems: 'center' }}>🔍</span>
+            <input 
+              type="text" 
+              placeholder="Query neural network..." 
+              style={{
+                width: '100%',
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                borderRadius: '16px',
+                padding: '10px 16px 10px 42px',
+                fontSize: '12px',
+                fontWeight: '700',
+                color: '#CBD5E1',
+                outline: 'none',
+                transition: 'all 0.2s',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          {/* Right Actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+            {/* Bell/Broadcasts dropdown */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <button style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#94A3B8',
+                cursor: 'pointer',
+                padding: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                position: 'relative'
+              }}>
+                🔔
+                <span style={{
+                  position: 'absolute',
+                  top: '6px',
+                  right: '6px',
+                  height: '8px',
+                  width: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: '#EF4444',
+                  boxShadow: '0 0 10px rgba(239, 68, 68, 0.5)'
+                }} />
+              </button>
+            </div>
+
+            <div style={{ height: '24px', width: '1px', backgroundColor: 'rgba(255,255,255,0.05)' }} />
+
+            {/* Profile Dropdown */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                height: '36px',
+                width: '36px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                overflow: 'hidden'
+              }}>
+                <span style={{ fontSize: '14px', fontWeight: '800', color: '#EF4444' }}>A</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1 }}>
+                <span style={{ fontSize: '12px', fontWeight: '700', color: '#E2E8F0' }}>Administrator</span>
+                <span style={{ fontSize: '9px', fontWeight: '800', textTransform: 'uppercase', color: 'rgba(239, 68, 68, 0.6)', letterSpacing: '1px', marginTop: '2px' }}>Active</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
         {/* OVERVIEW TAB */}
         {activeTab === 'overview' && (
           <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -1058,7 +1019,7 @@ export default function DashboardPanel({
                 title={localWelcome.welcomeEmbed?.title || '🎉 Welcome!'}
                 description={localWelcome.welcomeMessage || 'Welcome {user} to {server}!'}
                 footer="Ragnir Bot Greeting Preview"
-                color="#7C3AED"
+                color="#EF4444"
               />
             </div>
           </div>
@@ -1242,7 +1203,7 @@ export default function DashboardPanel({
                 {/* General Settings */}
                 <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Shield size={18} style={{ color: '#7C3AED' }} />
+                    <Shield size={18} style={{ color: '#EF4444' }} />
                     <span>Security Engine</span>
                   </h3>
                   
@@ -1404,8 +1365,8 @@ export default function DashboardPanel({
                       style={{
                         flex: 1,
                         padding: '10px 8px',
-                        background: antiNukeCategoryTab === cat ? 'rgba(124, 58, 237, 0.12)' : 'transparent',
-                        border: antiNukeCategoryTab === cat ? '1px solid rgba(124, 58, 237, 0.25)' : '1px solid transparent',
+                        background: antiNukeCategoryTab === cat ? 'rgba(239, 68, 68, 0.12)' : 'transparent',
+                        border: antiNukeCategoryTab === cat ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid transparent',
                         color: antiNukeCategoryTab === cat ? '#fff' : '#9CA3AF',
                         borderRadius: '8px',
                         cursor: 'pointer',
@@ -1629,7 +1590,7 @@ export default function DashboardPanel({
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ fontWeight: '600', color: '#fff' }}>{b.backup_name}</span>
-                          <code style={{ fontSize: '11px', color: '#7C3AED', background: 'rgba(124,58,237,0.1)', padding: '2px 6px', borderRadius: '4px' }}>
+                          <code style={{ fontSize: '11px', color: '#EF4444', background: 'rgba(124,58,237,0.1)', padding: '2px 6px', borderRadius: '4px' }}>
                             {b.id}
                           </code>
                         </div>

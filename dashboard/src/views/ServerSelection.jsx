@@ -54,7 +54,7 @@ export default function ServerSelection({ user, guilds, onSelectGuild, onLogout 
               width: '40px',
               height: '40px',
               borderRadius: '50%',
-              backgroundColor: '#7C3AED',
+              backgroundColor: '#EF4444',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

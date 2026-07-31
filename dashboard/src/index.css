@@ -1,27 +1,27 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg-dark: #07080a;
-  --bg-card: rgba(14, 15, 20, 0.65);
-  --bg-input: rgba(7, 8, 10, 0.8);
-  --border-color: rgba(124, 58, 237, 0.06);
-  --border-hover: rgba(124, 58, 237, 0.25);
-  --border-focus: rgba(124, 58, 237, 0.6);
+  --bg-dark: #020617;
+  --bg-card: rgba(10, 15, 30, 0.45);
+  --bg-input: rgba(2, 6, 23, 0.7);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(239, 68, 68, 0.25);
+  --border-focus: rgba(239, 68, 68, 0.6);
   
-  --accent-purple: #7C3AED;
-  --accent-purple-glow: rgba(124, 58, 237, 0.35);
-  --accent-fuchsia: #D946EF;
-  --accent-fuchsia-glow: rgba(217, 70, 239, 0.3);
+  --accent-purple: #EF4444;
+  --accent-purple-glow: rgba(239, 68, 68, 0.35);
+  --accent-fuchsia: #DC2626;
+  --accent-fuchsia-glow: rgba(220, 38, 38, 0.3);
   
-  --text-primary: #F3F4F6;
-  --text-secondary: #9CA3AF;
-  --text-muted: #6B7280;
-  --text-dark: #4B5563;
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --text-dark: #475569;
 
-  --shadow-glow: 0 0 24px 0 rgba(124, 58, 237, 0.15);
-  --shadow-btn: 0 0 20px 2px rgba(124, 58, 237, 0.3);
+  --shadow-glow: 0 0 24px 0 rgba(239, 68, 68, 0.15);
+  --shadow-btn: 0 0 20px 2px rgba(239, 68, 68, 0.3);
 
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
   color-scheme: dark;
   background-color: var(--bg-dark);
   color: var(--text-primary);
@@ -34,10 +34,7 @@ body {
   margin: 0;
   min-height: 100vh;
   position: relative;
-  background: 
-    radial-gradient(circle at 0% 0%, rgba(124, 58, 237, 0.08) 0%, rgba(0, 0, 0, 0) 45%),
-    radial-gradient(circle at 100% 100%, rgba(217, 70, 239, 0.05) 0%, rgba(0, 0, 0, 0) 45%),
-    var(--bg-dark);
+  background: var(--bg-dark);
 }
 
 /* Custom Scrollbar */
@@ -119,7 +116,7 @@ body {
 
 /* Glowing Buttons */
 .glow-btn {
-  background: linear-gradient(135deg, var(--accent-purple), #6366F1);
+  background: linear-gradient(135deg, var(--accent-purple), #991B1B);
   border: none;
   color: #ffffff;
   font-weight: 600;
@@ -132,7 +129,7 @@ body {
   justify-content: center;
   gap: 8px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 14px 0 rgba(124, 58, 237, 0.2);
+  box-shadow: 0 4px 14px 0 rgba(239, 68, 68, 0.2);
 }
 
 .glow-btn:hover {
@@ -244,9 +241,9 @@ tr:hover td {
 }
 
 .badge-purple {
-  background: rgba(124, 58, 237, 0.12);
-  color: #A78BFA;
-  border: 1px solid rgba(124, 58, 237, 0.2);
+  background: rgba(239, 68, 68, 0.12);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .badge-danger {
