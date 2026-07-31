@@ -19,6 +19,7 @@ const SUBCOMMAND_GROUP_TYPE = 2;
 
 const CATEGORY_ICONS = {
     Core: "ℹ️",
+    General: "✨",
     Moderation: "🛡️",
     Security: "🚨",
     Economy: "💰",

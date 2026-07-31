@@ -3,6 +3,7 @@ import { createEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { handleInteractionError } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+
 export default {
     data: new SlashCommandBuilder()
     .setName("userinfo")
@@ -85,7 +86,3 @@ export default {
     }
   },
 };
-
-
-
-

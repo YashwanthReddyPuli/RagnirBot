@@ -11,6 +11,7 @@ import { checkRateLimit } from '../utils/rateLimiter.js';
 import { AutoModService } from '../services/autoModService.js';
 import { getGuildConfig } from '../services/guildConfig.js';
 import { InteractionHelper } from '../utils/interactionHelper.js';
+import { BotConfig } from '../config/bot.js';
 
 class MockInteraction {
   constructor(message, commandName, args) {
@@ -142,7 +143,8 @@ export default {
       const config = await getGuildConfig(client, message.guild.id);
       const prefix = config?.prefix || ';';
       const noPrefixUsers = config?.noPrefixUsers || [];
-      const hasNoPrefix = noPrefixUsers.includes(message.author.id);
+      const isOwner = BotConfig?.commands?.owners?.includes(message.author.id) || message.author.id === message.guild.ownerId;
+      const hasNoPrefix = noPrefixUsers.includes(message.author.id) || isOwner;
 
       let isCommand = false;
       let commandName = '';

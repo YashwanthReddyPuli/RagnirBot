@@ -9,6 +9,7 @@ import { createEmbed } from "../../utils/embeds.js";
 import {
     createSelectMenu,
 } from "../../utils/components.js";
+import { BotConfig } from '../../config/bot.js';
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -23,6 +24,7 @@ const HELP_MENU_TIMEOUT_MS = 5 * 60 * 1000;
 
 const CATEGORY_ICONS = {
     Core: "ℹ️",
+    General: "✨",
     Moderation: "🛡️",
     Security: "🚨",
     Economy: "💰",
@@ -188,16 +190,126 @@ export async function createInitialHelpMenu(client) {
     };
 }
 
+export async function createCommandHelpEmbed(command, client) {
+    const data = typeof command.data.toJSON === 'function' ? command.data.toJSON() : command.data;
+    const name = data.name;
+    const desc = data.description || "No description provided.";
+    const category = command.category || "Utility";
+    const cooldown = command.cooldown || BotConfig?.commands?.defaultCooldown || 3;
+    
+    const options = data.options || [];
+    const subcommands = [];
+    const argsInfo = [];
+
+    for (const opt of options) {
+        if (opt.type === 1) {
+            subcommands.push(`\`/${name} ${opt.name}\` - ${opt.description}`);
+        } else if (opt.type === 2) {
+            const nested = opt.options || [];
+            for (const nest of nested) {
+                subcommands.push(`\`/${name} ${opt.name} ${nest.name}\` - ${nest.description}`);
+            }
+        } else {
+            argsInfo.push(`\`[${opt.name}]\` - ${opt.description}${opt.required ? ' (Required)' : ' (Optional)'}`);
+        }
+    }
+
+    const embed = createEmbed({
+        title: `🔧 Command Info: /${name}`,
+        description: desc,
+        color: 'primary'
+    });
+
+    embed.addFields(
+        { name: "📁 Category", value: category, inline: true },
+        { name: "⏱️ Cooldown", value: `${cooldown}s`, inline: true }
+    );
+
+    if (subcommands.length > 0) {
+        embed.addFields({ name: "📖 Subcommands", value: subcommands.join('\n'), inline: false });
+    }
+
+    if (argsInfo.length > 0) {
+        embed.addFields({ name: "📥 Arguments", value: argsInfo.join('\n'), inline: false });
+    }
+
+    if (data.default_member_permissions) {
+        embed.addFields({ name: "🛡️ Permissions Required", value: `Manage Messages / Administrative (Bitfield: \`${data.default_member_permissions}\`)`, inline: false });
+    }
+
+    embed.addFields({ 
+        name: "💡 Usage Example", 
+        value: argsInfo.length > 0 
+            ? `\`/${name} ${options.filter(o => o.type !== 1 && o.type !== 2).map(o => o.name).join(' ')}\``
+            : `\`/${name}\``, 
+        inline: false 
+    });
+
+    embed.setFooter({ text: "RagnirBot Help Center" });
+    embed.setTimestamp();
+
+    return embed;
+}
+
 export default {
     data: new SlashCommandBuilder()
         .setName("help")
-        .setDescription("Displays the help menu with all available commands"),
+        .setDescription("Displays the help menu with all available commands")
+        .addStringOption(option =>
+            option.setName("query")
+                .setDescription("Specify a command name or category to view detailed usage info.")
+                .setRequired(false)
+        ),
 
     async execute(interaction, guildConfig, client) {
-        
         const { MessageFlags } = await import('discord.js');
-        await InteractionHelper.safeDefer(interaction);
         
+        let query = '';
+        const isPrefix = !!interaction.message;
+
+        if (isPrefix) {
+            query = interaction.args?.[0]?.trim() || '';
+        } else {
+            query = interaction.options.getString('query')?.trim() || '';
+        }
+
+        if (query) {
+            await InteractionHelper.safeDefer(interaction);
+
+            // 1. Check if query is a Command Name
+            const command = client.commands.get(query.toLowerCase());
+            if (command) {
+                const embed = await createCommandHelpEmbed(command, client);
+                return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+            }
+
+            // 2. Check if query matches a Category / Module name
+            const { createCategoryCommandsMenu } = await import('../../handlers/helpSelectMenus.js');
+            const categoryDirs = Array.from(
+                new Set(
+                    Array.from(client.commands.values())
+                        .map(cmd => cmd.category)
+                        .filter(Boolean)
+                )
+            );
+            
+            const matchedCategory = categoryDirs.find(
+                cat => cat.toLowerCase() === query.toLowerCase()
+            );
+
+            if (matchedCategory) {
+                const { embeds, components } = await createCategoryCommandsMenu(matchedCategory, client);
+                return await InteractionHelper.safeEditReply(interaction, { embeds, components });
+            }
+
+            // 3. Not found: return error
+            return await InteractionHelper.safeEditReply(interaction, {
+                content: `❌ Command or category **"${query}"** was not found.`
+            });
+        }
+
+        // Default behavior (initial menu)
+        await InteractionHelper.safeDefer(interaction);
         const { embeds, components } = await createInitialHelpMenu(client);
 
         await InteractionHelper.safeEditReply(interaction, {
