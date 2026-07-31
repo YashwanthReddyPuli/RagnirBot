@@ -98,7 +98,7 @@ RagnirBot offers a complete suite of tools for Discord server management and com
 <a name="web-dashboard"></a>
 ## 🌐 High-Fidelity Web Dashboard
 
-RagnirBot features a state-of-the-art administrative web dashboard matching the premium obsidian-dark styling of **ZyroX** bot with crimson-red glows and glowing liquid backdrops.
+RagnirBot features a state-of-the-art administrative web dashboard with a premium obsidian-dark styling, crimson-red glows, and glowing liquid backdrops.
 
 ### Dashboard Core Modules
 - **Core Statistics & Lockdown**: Fast server stats overview and Raid Emergency Lockdown.
