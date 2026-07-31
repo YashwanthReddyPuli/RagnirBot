@@ -56,7 +56,10 @@ class PostgreSQLDatabase {
                     application_name: pgConfig.options.application_name,
                     statement_timeout: pgConfig.options.statement_timeout,
                     keepalives: pgConfig.options.keepalives,
-                    keepalives_idle: pgConfig.options.keepalives_idle,
+                });
+
+                this.pool.on('error', (err) => {
+                    logger.debug('PostgreSQL pool error:', err.message);
                 });
 
                 const client = await this.pool.connect();

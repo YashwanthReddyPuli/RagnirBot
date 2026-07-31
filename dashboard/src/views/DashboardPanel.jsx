@@ -15,7 +15,8 @@ import {
   UserCheck,
   Zap,
   Fingerprint,
-  Star
+  Star,
+  Mic
 } from 'lucide-react';
 import GlowToggle from '../components/GlowToggle';
 import DiscordPreview from '../components/DiscordPreview';
@@ -706,13 +707,17 @@ export default function DashboardPanel({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <p style={{ margin: '0 0 6px 10px', fontSize: '10px', fontWeight: '900', color: '#64748B', letterSpacing: '2px', textTransform: 'uppercase' }}>Engagement</p>
             {renderSidebarItem('welcome', 'Welcome Setup', MessageSquare)}
-            {renderSidebarItem('reactionroles', 'Reaction Roles', UserCheck)}
+            {renderSidebarItem('leveling', 'Leveling Setup', TrendingUp)}
+            {renderSidebarItem('autorole', 'Auto Role Setup', UserCheck)}
+            {renderSidebarItem('reactionroles', 'Reaction Roles', Star)}
             {renderSidebarItem('vanity', 'Vanity Reward', Star)}
           </div>
 
           {/* UTILITY */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <p style={{ margin: '0 0 6px 10px', fontSize: '10px', fontWeight: '900', color: '#64748B', letterSpacing: '2px', textTransform: 'uppercase' }}>Utility / System</p>
+            {renderSidebarItem('tickets', 'Tickets Config', MessageSquare)}
+            {renderSidebarItem('j2c', 'Join to Create Setup', Mic)}
             {renderSidebarItem('logging', 'Logging Config', ListFilter)}
             {renderSidebarItem('moderation', 'Moderation Warnings', ShieldAlert)}
             {renderSidebarItem('backups', 'Server Backups', Database)}
@@ -2061,6 +2066,278 @@ export default function DashboardPanel({
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* LEVELING SETUP TAB */}
+        {activeTab === 'leveling' && (
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 8px' }}>Leveling System</h2>
+              <p style={{ color: '#9CA3AF', fontSize: '14px', margin: 0 }}>Configure XP multipliers, level announcement configurations, and custom level-up alerts.</p>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
+              <div className="glass-panel" style={{ flex: 1, minWidth: '400px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', margin: 0 }}>⚙️ System Settings</h3>
+
+                <GlowToggle 
+                  label="Enable Leveling System" 
+                  checked={!!localConfig.leveling?.enabled} 
+                  onChange={() => {
+                    const lev = localConfig.leveling || { enabled: false, xpRate: 1, announcementChannel: '' };
+                    handleUpdateConfig('leveling', { ...lev, enabled: !lev.enabled });
+                  }} 
+                />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>XP Multiplier Rate (Default: 1.0x)</label>
+                  <select 
+                    className="glow-input"
+                    value={localConfig.leveling?.xpRate || 1}
+                    onChange={(e) => {
+                      const lev = localConfig.leveling || { enabled: false, xpRate: 1, announcementChannel: '' };
+                      handleUpdateConfig('leveling', { ...lev, xpRate: Number(e.target.value) });
+                    }}
+                  >
+                    <option value="0.5">0.5x XP (Slow)</option>
+                    <option value="1">1.0x XP (Normal)</option>
+                    <option value="1.5">1.5x XP (Fast)</option>
+                    <option value="2">2.0x XP (Double XP)</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Level-Up Announcements Channel</label>
+                  <select 
+                    className="glow-input"
+                    value={localConfig.leveling?.announcementChannel || ''}
+                    onChange={(e) => {
+                      const lev = localConfig.leveling || { enabled: false, xpRate: 1, announcementChannel: '' };
+                      handleUpdateConfig('leveling', { ...lev, announcementChannel: e.target.value });
+                    }}
+                  >
+                    <option value="">Current Channel (Where message was sent)</option>
+                    <option value="direct_message">Direct Message User</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Level-Up Announcement Message</label>
+                  <textarea 
+                    className="glow-input"
+                    rows={3}
+                    placeholder="GG {user}! You have leveled up to level {level}! 🎉"
+                    value={localConfig.leveling?.message || ''}
+                    onChange={(e) => {
+                      const lev = localConfig.leveling || { enabled: false, xpRate: 1, announcementChannel: '' };
+                      handleUpdateConfig('leveling', { ...lev, message: e.target.value });
+                    }}
+                  />
+                </div>
+
+                <button className="glow-btn" onClick={() => onSaveConfig(localConfig)} style={{ marginTop: '12px' }}>
+                  <Save size={16} />
+                  <span>Save Leveling Config</span>
+                </button>
+              </div>
+
+              <div style={{ width: '380px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', margin: 0 }}>📊 Leveling Roles Setup</h3>
+                  <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0, lineHeight: 1.5 }}>
+                    Give users specialized cosmetic roles when they reach milestones (e.g. Level 10, Level 50).
+                  </p>
+                  
+                  <div style={{ border: '1px dashed rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px', textAlign: 'center', color: '#64748B', fontSize: '13px' }}>
+                    Click Save to persist leveling roles structure. Role rewards can be configured via `/level-role` commands in the server.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* AUTO ROLE SETUP TAB */}
+        {activeTab === 'autorole' && (
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 8px' }}>Auto Role Setup</h2>
+              <p style={{ color: '#9CA3AF', fontSize: '14px', margin: 0 }}>Automatically assign specific roles to new members when they join the server.</p>
+            </div>
+
+            <div className="glass-panel" style={{ maxWidth: '600px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', margin: 0 }}>👥 Auto Assign Configuration</h3>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Join Role (Assigned instantly on member join)</label>
+                <select 
+                  className="glow-input"
+                  value={localConfig.autoRole || ''}
+                  onChange={(e) => handleUpdateConfig('autoRole', e.target.value || null)}
+                >
+                  <option value="">Disabled / None</option>
+                  {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Auto Role Assignment Delay (Optional)</label>
+                <select 
+                  className="glow-input"
+                  value={localConfig.autoRoleDelay ? 'enabled' : 'disabled'}
+                  onChange={(e) => {
+                    handleUpdateConfig('autoRoleDelay', e.target.value === 'enabled' ? 10 : 0);
+                  }}
+                >
+                  <option value="disabled">Instant Assignment (No delay)</option>
+                  <option value="enabled">Delayed Assignment</option>
+                </select>
+              </div>
+
+              {localConfig.autoRoleDelay > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Delay Duration (Seconds)</label>
+                  <input 
+                    type="number" 
+                    className="glow-input" 
+                    value={localConfig.autoRoleDelay}
+                    onChange={(e) => handleUpdateConfig('autoRoleDelay', Number(e.target.value))}
+                  />
+                </div>
+              )}
+
+              <button className="glow-btn" onClick={() => onSaveConfig(localConfig)} style={{ marginTop: '12px' }}>
+                <Save size={16} />
+                <span>Save Auto Role Settings</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TICKETS CONFIG TAB */}
+        {activeTab === 'tickets' && (
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 8px' }}>Ticket Support System</h2>
+              <p style={{ color: '#9CA3AF', fontSize: '14px', margin: 0 }}>Configure ticket creation categories, support staff roles, and custom ticket response messages.</p>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
+              <div className="glass-panel" style={{ flex: 1, minWidth: '400px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', margin: 0 }}>⚙️ Support Dashboard</h3>
+
+                <GlowToggle 
+                  label="Enable Ticket Support Module" 
+                  checked={!!localConfig.tickets?.enabled} 
+                  onChange={() => {
+                    const tick = localConfig.tickets || { enabled: false, ticketCategory: '', supportRole: '', welcomeMessage: '' };
+                    handleUpdateConfig('tickets', { ...tick, enabled: !tick.enabled });
+                  }} 
+                />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Support Team Staff Role</label>
+                  <select 
+                    className="glow-input"
+                    value={localConfig.tickets?.supportRole || ''}
+                    onChange={(e) => {
+                      const tick = localConfig.tickets || { enabled: false, ticketCategory: '', supportRole: '', welcomeMessage: '' };
+                      handleUpdateConfig('tickets', { ...tick, supportRole: e.target.value });
+                    }}
+                  >
+                    <option value="">None / Administrator Only</option>
+                    {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Ticket Welcome Message (Sent in new tickets)</label>
+                  <textarea 
+                    className="glow-input"
+                    rows={4}
+                    placeholder="Hello {user}, thank you for reaching out! A member of our staff team will assist you shortly. In the meantime, please detail your inquiry."
+                    value={localConfig.tickets?.welcomeMessage || ''}
+                    onChange={(e) => {
+                      const tick = localConfig.tickets || { enabled: false, ticketCategory: '', supportRole: '', welcomeMessage: '' };
+                      handleUpdateConfig('tickets', { ...tick, welcomeMessage: e.target.value });
+                    }}
+                  />
+                </div>
+
+                <button className="glow-btn" onClick={() => onSaveConfig(localConfig)} style={{ marginTop: '12px' }}>
+                  <Save size={16} />
+                  <span>Save Ticket Config</span>
+                </button>
+              </div>
+
+              <div style={{ width: '380px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', margin: 0 }}>📊 Ticket System Guide</h3>
+                  <p style={{ fontSize: '12px', color: '#9CA3AF', margin: 0, lineHeight: 1.5 }}>
+                    Tickets can be generated dynamically in the server by setting up ticket panel buttons using the `/ticket-panel` command.
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(239, 68, 68, 0.05)', padding: '12px', borderRadius: '10px', border: '1px solid rgba(239, 68, 68, 0.15)', color: '#EF4444', fontSize: '11px', fontWeight: 'bold' }}>
+                    ℹ️ Staff roles have access to resolve, close, or archive tickets.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* JOIN TO CREATE SETUP TAB */}
+        {activeTab === 'j2c' && (
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 8px' }}>Join to Create (j2c) Setup</h2>
+              <p style={{ color: '#9CA3AF', fontSize: '14px', margin: 0 }}>Enable auto-generating custom temporary voice channels for members when they join a hub channel.</p>
+            </div>
+
+            <div className="glass-panel" style={{ maxWidth: '600px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', margin: 0 }}>🎙️ Temporary Voice Settings</h3>
+
+              <GlowToggle 
+                label="Enable Join to Create" 
+                checked={!!localConfig.j2c?.enabled} 
+                onChange={() => {
+                  const currentJ2c = localConfig.j2c || { enabled: false, hubChannelId: '', userLimit: 0 };
+                  handleUpdateConfig('j2c', { ...currentJ2c, enabled: !currentJ2c.enabled });
+                }} 
+              />
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Voice Hub Channel ID</label>
+                <input 
+                  type="text" 
+                  className="glow-input" 
+                  placeholder="e.g. 1530897321871671336"
+                  value={localConfig.j2c?.hubChannelId || ''}
+                  onChange={(e) => {
+                    const currentJ2c = localConfig.j2c || { enabled: false, hubChannelId: '', userLimit: 0 };
+                    handleUpdateConfig('j2c', { ...currentJ2c, hubChannelId: e.target.value });
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Default User Limit per voice channel (0 = No Limit)</label>
+                <input 
+                  type="number" 
+                  className="glow-input" 
+                  value={localConfig.j2c?.userLimit || 0}
+                  onChange={(e) => {
+                    const currentJ2c = localConfig.j2c || { enabled: false, hubChannelId: '', userLimit: 0 };
+                    handleUpdateConfig('j2c', { ...currentJ2c, userLimit: Number(e.target.value) });
+                  }}
+                />
+              </div>
+
+              <button className="glow-btn" onClick={() => onSaveConfig(localConfig)} style={{ marginTop: '12px' }}>
+                <Save size={16} />
+                <span>Save Voice settings</span>
+              </button>
             </div>
           </div>
         )}
