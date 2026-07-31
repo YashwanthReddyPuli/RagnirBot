@@ -1,4 +1,4 @@
-import { AuditLogEvent, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
+import { AuditLogEvent, PermissionFlagsBits, EmbedBuilder, ChannelType } from 'discord.js';
 import { logger } from '../utils/logger.js';
 import { getGuildConfig, setGuildConfig } from './guildConfig.js';
 import { createEmbed } from '../utils/embeds.js';
@@ -153,11 +153,36 @@ export const AntiNukeService = {
     const client = guild.client;
     const config = await getGuildConfig(client, guild.id);
     const logChannelId = config.antinuke?.logChannelId || config.logChannelId;
-    const reason = `[Anti-Nuke Triggered] Exceeded ${eventType} limit (${count} actions)`;
+    
+    const settings = config.antinuke?.settings?.[eventType] || { limit: 3, timeframe: 15000, action: 'demote' };
+    const limit = settings.limit;
+    const timeframeSec = settings.timeframe / 1000;
+    const reason = `[Anti-Nuke Triggered] Exceeded ${eventType} limit (${count} actions in ${timeframeSec}s)`;
 
     const member = await guild.members.fetch(executor.id).catch(() => null);
     let success = false;
     let punishmentApplied = 'None';
+
+    // 1. Send warning direct message to the executor
+    try {
+      const dmEmbed = new EmbedBuilder()
+        .setTitle('🚨 Server Security Action Alert')
+        .setDescription(`You have triggered the Anti-Nuke security protection in **${guild.name}**!`)
+        .setColor('#ED4245')
+        .addFields(
+          { name: 'Security Trigger', value: `\`${eventType}\``, inline: true },
+          { name: 'Threshold Limit', value: `\`${limit}\` actions in \`${timeframeSec}s\``, inline: true },
+          { name: 'Your Action Count', value: `\`${count}\` actions`, inline: true },
+          { name: 'Applied Punishment', value: `**${action.toUpperCase()}**`, inline: false }
+        )
+        .setTimestamp();
+      
+      await executor.send({ embeds: [dmEmbed] }).catch(() => {
+        logger.info(`Could not send Anti-Nuke warning DM to ${executor.tag}`);
+      });
+    } catch (dmErr) {
+      logger.error('Error sending executor DM:', dmErr);
+    }
 
     if (member) {
       // Check bot hierarchy safety
@@ -192,12 +217,43 @@ export const AntiNukeService = {
       }
     }
 
-    // Log the event
+    // 2. Alert the guild publicly in systemChannel or first active text channel
+    try {
+      const systemChannel = guild.systemChannel || guild.channels.cache.find(
+        c => c.type === ChannelType.GuildText && c.permissionsFor(guild.members.me).has(PermissionFlagsBits.SendMessages)
+      );
+      
+      if (systemChannel) {
+        const warningEmbed = new EmbedBuilder()
+          .setTitle('🚨 SECURITY TRIGGER WARNING: Anti-Nuke Activated!')
+          .setDescription(`⚠️ **${executor.tag}** (${executor}) triggered the server's Anti-Nuke security system!`)
+          .setColor('#ED4245')
+          .addFields(
+            { name: 'Security Trigger', value: `\`${eventType}\``, inline: true },
+            { name: 'Threshold Limit', value: `\`${limit}\` actions in \`${timeframeSec}s\``, inline: true },
+            { name: 'Rogue Action Count', value: `\`${count}\` actions`, inline: true },
+            { name: 'Punishment Configured', value: `\`${action.toUpperCase()}\``, inline: true },
+            { name: 'Punishment Result Status', value: `\`${punishmentApplied}\``, inline: true }
+          )
+          .setTimestamp();
+
+        await systemChannel.send({
+          content: `⚠️ **Security Alert:** <@${executor.id}> has triggered anti-nuke limits!`,
+          embeds: [warningEmbed]
+        }).catch(err => {
+          logger.warn(`Failed to send public anti-nuke warning: ${err.message}`);
+        });
+      }
+    } catch (pubErr) {
+      logger.error('Error posting public anti-nuke warning:', pubErr);
+    }
+
+    // 3. Log the event to private log channel
     if (logChannelId) {
       const channel = guild.channels.cache.get(logChannelId);
       if (channel) {
         const embed = new EmbedBuilder()
-          .setTitle('🚨 Anti-Nuke Security Alert')
+          .setTitle('🚨 Anti-Nuke Security Alert (Staff log)')
           .setColor('#ED4245')
           .setDescription(`An administrator triggered anti-nuke protection for **${eventType}**.`)
           .addFields(
