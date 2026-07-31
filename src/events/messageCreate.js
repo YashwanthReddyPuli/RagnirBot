@@ -39,12 +39,46 @@ class MockInteraction {
       return res;
     };
 
+    const getSubcommandGroup = () => {
+      const cmd = message.client.commands.get(commandName);
+      if (cmd?.data?.options && args[0]) {
+        const groupOption = cmd.data.options.find(opt => opt.type === 2 && opt.name === args[0].toLowerCase());
+        if (groupOption) return groupOption.name;
+      }
+      return null;
+    };
+
+    const getSubcommand = () => {
+      const group = getSubcommandGroup();
+      if (group) {
+        return args[1]?.toLowerCase() || null;
+      }
+      const cmd = message.client.commands.get(commandName);
+      if (cmd?.data?.options && args[0]) {
+        const subcommandOption = cmd.data.options.find(opt => opt.type === 1 && opt.name === args[0].toLowerCase());
+        if (subcommandOption) return subcommandOption.name;
+      }
+      return args[0]?.toLowerCase() || null;
+    };
+
+    const getParamArgs = () => {
+      const group = getSubcommandGroup();
+      const subcommand = getSubcommand();
+      let sliceIndex = 0;
+      if (group) sliceIndex++;
+      if (subcommand) sliceIndex++;
+      return args.slice(sliceIndex);
+    };
+
     this.options = {
+      getSubcommandGroup: (required = false) => getSubcommandGroup(),
+      getSubcommand: (required = false) => getSubcommand(),
       getUser: (name) => {
         const mention = message.mentions.users.first();
         if (mention) return mention;
         
-        const firstArgClean = cleanSearchStr(args[0]);
+        const paramArgs = getParamArgs();
+        const firstArgClean = cleanSearchStr(paramArgs[0]);
         if (firstArgClean) {
           if (/^\d+$/.test(firstArgClean)) {
             const foundUser = message.client.users.cache.get(firstArgClean);
@@ -59,7 +93,7 @@ class MockInteraction {
           if (found) return found.user;
         }
 
-        const joinedClean = cleanSearchStr(args.join(' '));
+        const joinedClean = cleanSearchStr(paramArgs.join(' '));
         if (joinedClean && joinedClean !== firstArgClean) {
           if (/^\d+$/.test(joinedClean)) {
             const foundUser = message.client.users.cache.get(joinedClean);
@@ -80,7 +114,8 @@ class MockInteraction {
         const mention = message.mentions.members.first();
         if (mention) return mention;
         
-        const firstArgClean = cleanSearchStr(args[0]);
+        const paramArgs = getParamArgs();
+        const firstArgClean = cleanSearchStr(paramArgs[0]);
         if (firstArgClean) {
           if (/^\d+$/.test(firstArgClean)) {
             const foundMember = message.guild.members.cache.get(firstArgClean);
@@ -95,7 +130,7 @@ class MockInteraction {
           if (found) return found;
         }
 
-        const joinedClean = cleanSearchStr(args.join(' '));
+        const joinedClean = cleanSearchStr(paramArgs.join(' '));
         if (joinedClean && joinedClean !== firstArgClean) {
           if (/^\d+$/.test(joinedClean)) {
             const foundMember = message.guild.members.cache.get(joinedClean);
@@ -116,7 +151,8 @@ class MockInteraction {
         const mention = message.mentions.roles.first();
         if (mention) return mention;
         
-        const firstArgClean = cleanSearchStr(args[0]);
+        const paramArgs = getParamArgs();
+        const firstArgClean = cleanSearchStr(paramArgs[0]);
         if (firstArgClean) {
           if (/^\d+$/.test(firstArgClean)) {
             const foundRole = message.guild.roles.cache.get(firstArgClean);
@@ -127,7 +163,7 @@ class MockInteraction {
           if (found) return found;
         }
 
-        const joinedClean = cleanSearchStr(args.join(' '));
+        const joinedClean = cleanSearchStr(paramArgs.join(' '));
         if (joinedClean && joinedClean !== firstArgClean) {
           if (/^\d+$/.test(joinedClean)) {
             const foundRole = message.guild.roles.cache.get(joinedClean);
@@ -144,7 +180,8 @@ class MockInteraction {
         const mention = message.mentions.channels.first();
         if (mention) return mention;
         
-        const firstArgClean = cleanSearchStr(args[0]);
+        const paramArgs = getParamArgs();
+        const firstArgClean = cleanSearchStr(paramArgs[0]);
         if (firstArgClean) {
           if (/^\d+$/.test(firstArgClean)) {
             const foundChannel = message.guild.channels.cache.get(firstArgClean);
@@ -155,7 +192,7 @@ class MockInteraction {
           if (found) return found;
         }
 
-        const joinedClean = cleanSearchStr(args.join(' '));
+        const joinedClean = cleanSearchStr(paramArgs.join(' '));
         if (joinedClean && joinedClean !== firstArgClean) {
           if (/^\d+$/.test(joinedClean)) {
             const foundChannel = message.guild.channels.cache.get(joinedClean);
@@ -169,22 +206,26 @@ class MockInteraction {
         return null;
       },
       getString: (name) => {
-        const hasTargetMention = message.mentions.users.size > 0 || message.mentions.roles.size > 0 || message.mentions.channels.size > 0 || (args[0] && /^\d+$/.test(args[0]));
+        const paramArgs = getParamArgs();
+        const hasTargetMention = message.mentions.users.size > 0 || message.mentions.roles.size > 0 || message.mentions.channels.size > 0 || (paramArgs[0] && /^\d+$/.test(paramArgs[0]));
         if (hasTargetMention) {
-          return args.slice(1).join(' ') || null;
+          return paramArgs.slice(1).join(' ') || null;
         }
-        return args.join(' ') || null;
+        return paramArgs.join(' ') || null;
       },
       getInteger: (name) => {
-        const arg = args.find(a => /^\d+$/.test(a));
+        const paramArgs = getParamArgs();
+        const arg = paramArgs.find(a => /^\d+$/.test(a));
         return arg ? parseInt(arg, 10) : null;
       },
       getNumber: (name) => {
-        const arg = args.find(a => /^\d+(\.\d+)?$/.test(a));
+        const paramArgs = getParamArgs();
+        const arg = paramArgs.find(a => /^\d+(\.\d+)?$/.test(a));
         return arg ? parseFloat(arg) : null;
       },
       getBoolean: (name) => {
-        const val = args.join(' ').toLowerCase();
+        const paramArgs = getParamArgs();
+        const val = paramArgs.join(' ').toLowerCase();
         if (val.includes('true') || val.includes('yes') || val.includes('enable')) return true;
         if (val.includes('false') || val.includes('no') || val.includes('disable')) return false;
         return null;
