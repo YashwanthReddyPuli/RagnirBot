@@ -16,7 +16,8 @@ import {
   Zap,
   Fingerprint,
   Star,
-  Mic
+  Mic,
+  Gift
 } from 'lucide-react';
 import GlowToggle from '../components/GlowToggle';
 import DiscordPreview from '../components/DiscordPreview';
@@ -80,6 +81,72 @@ export default function DashboardPanel({
     })
     .catch(console.error);
   }, [guild.id, token]);
+
+  // Giveaways Manager states
+  const [giveaways, setGiveaways] = useState([]);
+  const [giveawayPrize, setGiveawayPrize] = useState('');
+  const [giveawayWinners, setGiveawayWinners] = useState(1);
+  const [giveawayDuration, setGiveawayDuration] = useState('1h');
+  const [giveawayChannelId, setGiveawayChannelId] = useState('');
+
+  // Fetch giveaways
+  useEffect(() => {
+    if (activeTab === 'giveaways') {
+      fetch(`/api/guilds/${guild.id}/giveaways`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setGiveaways(data);
+        }
+      })
+      .catch(err => console.error('Error fetching giveaways:', err));
+    }
+  }, [activeTab, guild.id, token]);
+
+  // Automatically select first channel as default if none selected
+  useEffect(() => {
+    if (channels.length > 0 && !giveawayChannelId) {
+      setGiveawayChannelId(channels[0].id);
+    }
+  }, [channels, giveawayChannelId]);
+
+  const handleCreateGiveaway = () => {
+    if (!giveawayPrize || !giveawayDuration || !giveawayChannelId) {
+      triggerAlert('error', 'Please fill in all giveaway details.');
+      return;
+    }
+
+    fetch(`/api/guilds/${guild.id}/giveaways`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        channelId: giveawayChannelId,
+        prize: giveawayPrize,
+        winnerCount: Number(giveawayWinners),
+        duration: giveawayDuration
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        triggerAlert('success', `Giveaway launched successfully!`);
+        // Refresh giveaways list
+        setGiveaways(prev => [data.giveaway, ...prev]);
+        // Reset form
+        setGiveawayPrize('');
+        setGiveawayWinners(1);
+        setGiveawayDuration('1h');
+      } else {
+        triggerAlert('error', `Failed to start giveaway: ${data.error}`);
+      }
+    })
+    .catch(() => triggerAlert('error', 'Network error launching giveaway.'));
+  };
 
   // Sync props to state
   useEffect(() => {
@@ -711,6 +778,7 @@ export default function DashboardPanel({
             {renderSidebarItem('autorole', 'Auto Role Setup', UserCheck)}
             {renderSidebarItem('reactionroles', 'Reaction Roles', Star)}
             {renderSidebarItem('vanity', 'Vanity Reward', Star)}
+            {renderSidebarItem('giveaways', 'Giveaways Manager', Gift)}
           </div>
 
           {/* UTILITY */}
@@ -2338,6 +2406,154 @@ export default function DashboardPanel({
                 <Save size={16} />
                 <span>Save Voice settings</span>
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* GIVEAWAYS MANAGER TAB */}
+        {activeTab === 'giveaways' && (
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 8px' }}>Giveaway Manager</h2>
+              <p style={{ color: '#9CA3AF', fontSize: '14px', margin: 0 }}>Create and manage active giveaways inside your server, and review completed giveaway winners.</p>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
+              {/* Creator Form */}
+              <div className="glass-panel" style={{ flex: 1, minWidth: '400px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Gift size={20} style={{ color: '#EF4444' }} />
+                  <span>Host New Giveaway</span>
+                </h3>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Giveaway Prize / Reward</label>
+                  <input 
+                    type="text" 
+                    className="glow-input" 
+                    placeholder="e.g. Discord Nitro Classic"
+                    value={giveawayPrize}
+                    onChange={(e) => setGiveawayPrize(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '16px' }}>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Winner Count (1-10)</label>
+                    <input 
+                      type="number" 
+                      min="1" 
+                      max="10" 
+                      className="glow-input" 
+                      value={giveawayWinners}
+                      onChange={(e) => setGiveawayWinners(Number(e.target.value))}
+                    />
+                  </div>
+
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Duration (e.g., 10m, 1h, 2d)</label>
+                    <input 
+                      type="text" 
+                      className="glow-input" 
+                      placeholder="e.g., 1h"
+                      value={giveawayDuration}
+                      onChange={(e) => setGiveawayDuration(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Target Text Channel</label>
+                  <select 
+                    className="glow-input"
+                    value={giveawayChannelId}
+                    onChange={(e) => setGiveawayChannelId(e.target.value)}
+                  >
+                    {channels.map(ch => (
+                      <option key={ch.id} value={ch.id}>#{ch.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <button className="glow-btn" onClick={handleCreateGiveaway} style={{ marginTop: '12px' }}>
+                  <Plus size={16} />
+                  <span>Launch Giveaway</span>
+                </button>
+              </div>
+
+              {/* History and Stats */}
+              <div style={{ width: '380px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', margin: 0 }}>📊 Giveaways Stats</h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                    <span style={{ color: '#9CA3AF', fontSize: '13px' }}>Active Giveaways</span>
+                    <span style={{ fontWeight: '700', color: '#fff' }}>
+                      {giveaways.filter(g => !g.ended && !g.isEnded).length}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#9CA3AF', fontSize: '13px' }}>Total Completed</span>
+                    <span style={{ fontWeight: '700', color: '#fff' }}>
+                      {giveaways.filter(g => g.ended || g.isEnded).length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* List of active giveaways */}
+            <div className="glass-panel" style={{ padding: '24px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', margin: '0 0 16px 0' }}>🎉 Active Giveaways</h3>
+              {giveaways.filter(g => !g.ended && !g.isEnded).length === 0 ? (
+                <p style={{ color: '#64748B', fontSize: '14px', margin: 0, textAlign: 'center', padding: '16px 0' }}>No active giveaways running.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {giveaways.filter(g => !g.ended && !g.isEnded).map(g => (
+                    <div key={g.messageId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '14px 20px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div>
+                        <div style={{ fontWeight: '700', color: '#fff', fontSize: '15px' }}>{g.prize}</div>
+                        <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '4px' }}>
+                          Channel: <span style={{ color: '#CBD5E1' }}>#{channels.find(ch => ch.id === g.channelId)?.name || g.channelId}</span> • 
+                          Winners: <span style={{ color: '#CBD5E1' }}>{g.winnerCount}</span>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '12px', color: '#EF4444', fontWeight: 'bold' }}>Active</div>
+                        <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '4px' }}>
+                          Ends at: {new Date(g.endsAt || g.endTime).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* History Table */}
+            <div className="glass-panel" style={{ padding: '24px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#fff', margin: '0 0 16px 0' }}>📜 Past Giveaways History</h3>
+              {giveaways.filter(g => g.ended || g.isEnded).length === 0 ? (
+                <p style={{ color: '#64748B', fontSize: '14px', margin: 0, textAlign: 'center', padding: '16px 0' }}>No completed giveaways recorded.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {giveaways.filter(g => g.ended || g.isEnded).map(g => (
+                    <div key={g.messageId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.01)', padding: '14px 20px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                      <div>
+                        <div style={{ fontWeight: '700', color: 'rgba(255,255,255,0.8)', fontSize: '14px' }}>{g.prize}</div>
+                        <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>
+                          Winners Picked: <span style={{ color: '#9CA3AF' }}>{g.winnerIds && g.winnerIds.length > 0 ? g.winnerIds.map(w => `<@${w}>`).join(', ') : 'No valid entries'}</span>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '12px', color: '#64748B', fontWeight: '600' }}>Completed</div>
+                        <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
+                          Ended: {new Date(g.endedAt || g.endsAt || g.endTime).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

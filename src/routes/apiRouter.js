@@ -6,13 +6,18 @@ import { getGuildConfig, setGuildConfig } from '../services/guildConfig.js';
 import { BackupService } from '../services/backupService.js';
 import { getWelcomeConfig, updateWelcomeConfig } from '../utils/database.js';
 import { WarningService } from '../services/warningService.js';
-import { 
-    getAllReactionRoleMessages, 
-    createReactionRoleMessage, 
-    deleteReactionRoleMessage 
-} from '../services/reactionRoleService.js';
+import { getAllReactionRoleMessages, createReactionRoleMessage, deleteReactionRoleMessage } from '../services/reactionRoleService.js';
 import { logger } from '../utils/logger.js';
 import { LockdownService } from '../services/lockdownService.js';
+import { getGuildGiveaways, saveGiveaway } from '../utils/giveaways.js';
+import { 
+    parseDuration, 
+    validatePrize, 
+    validateWinnerCount,
+    createGiveawayEmbed, 
+    createGiveawayButtons 
+} from '../services/giveawayService.js';
+import { logEvent, EVENT_TYPES } from '../services/loggingService.js';
 
 export default (client) => {
     const router = express.Router();
@@ -456,6 +461,101 @@ export default (client) => {
         } catch (error) {
             logger.error(`Error toggling lockdown for guild ${req.params.guildId}:`, error.message);
             res.status(500).json({ error: 'Failed to toggle lockdown' });
+        }
+    });
+
+    // Fetch all guild giveaways (active and ended)
+    router.get('/guilds/:guildId/giveaways', authMiddleware, adminGuildMiddleware, async (req, res) => {
+        try {
+            const giveaways = await getGuildGiveaways(client, req.params.guildId);
+            res.json(giveaways);
+        } catch (error) {
+            logger.error(`Error fetching giveaways for guild ${req.params.guildId}:`, error.message);
+            res.status(500).json({ error: 'Failed to fetch giveaways' });
+        }
+    });
+
+    // Create a new giveaway via dashboard
+    router.post('/guilds/:guildId/giveaways', authMiddleware, adminGuildMiddleware, async (req, res) => {
+        try {
+            const guild = client.guilds.cache.get(req.params.guildId);
+            if (!guild) {
+                return res.status(404).json({ error: 'Bot is not present in this guild' });
+            }
+
+            const { channelId, prize, winnerCount, duration } = req.body;
+            if (!channelId || !prize || !winnerCount || !duration) {
+                return res.status(400).json({ error: 'Missing channelId, prize, winnerCount, or duration' });
+            }
+
+            const targetChannel = guild.channels.cache.get(channelId);
+            if (!targetChannel || targetChannel.type !== ChannelType.GuildText) {
+                return res.status(400).json({ error: 'Target channel must be a valid text channel' });
+            }
+
+            // Validations
+            const durationMs = parseDuration(duration);
+            validateWinnerCount(Number(winnerCount));
+            const prizeName = validatePrize(prize);
+
+            const endTime = Date.now() + durationMs;
+
+            const initialGiveawayData = {
+                messageId: "placeholder",
+                channelId: targetChannel.id,
+                guildId: req.params.guildId,
+                prize: prizeName,
+                hostId: req.user.id,
+                endTime: endTime,
+                endsAt: endTime,
+                winnerCount: Number(winnerCount),
+                participants: [],
+                isEnded: false,
+                ended: false,
+                createdAt: new Date().toISOString()
+            };
+
+            const embed = createGiveawayEmbed(initialGiveawayData, "active");
+            const row = createGiveawayButtons(false);
+
+            const giveawayMessage = await targetChannel.send({
+                content: "🎉 **NEW GIVEAWAY** 🎉",
+                embeds: [embed],
+                components: [row]
+            });
+
+            initialGiveawayData.messageId = giveawayMessage.id;
+            const saved = await saveGiveaway(client, req.params.guildId, initialGiveawayData);
+            if (!saved) {
+                logger.warn(`Failed to save giveaway to database: ${giveawayMessage.id}`);
+            }
+
+            // Log event
+            try {
+                await logEvent({
+                    client,
+                    guildId: req.params.guildId,
+                    eventType: EVENT_TYPES.GIVEAWAY_CREATE,
+                    data: {
+                        description: `Giveaway created: ${prizeName}`,
+                        channelId: targetChannel.id,
+                        userId: req.user.id,
+                        fields: [
+                            { name: '🎁 Prize', value: prizeName, inline: true },
+                            { name: '🏆 Winners', value: winnerCount.toString(), inline: true },
+                            { name: '⏰ Duration', value: duration, inline: true },
+                            { name: '📍 Channel', value: targetChannel.toString(), inline: true }
+                        ]
+                    }
+                });
+            } catch (logError) {
+                logger.debug('Error logging giveaway creation event:', logError);
+            }
+
+            res.json({ success: true, giveaway: initialGiveawayData });
+        } catch (error) {
+            logger.error(`Error creating giveaway for guild ${req.params.guildId}:`, error.message);
+            res.status(500).json({ error: error.message || 'Failed to create giveaway' });
         }
     });
 
