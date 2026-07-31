@@ -167,6 +167,40 @@ RagnirBot requires the following Discord intents:
 - **Bot**
 - **Applications.commands**
 
+## ℹ️ General Commands & Dynamic Argument Resolving
+
+RagnirBot supports highly intuitive and smart argument resolution for all prefix/no-prefix commands (e.g., `;banner yash`, `;avatar moderator`, `;logging config`). You do not need to copy user IDs or type raw mentions:
+* **Users & Members**: Resolve by typing partial usernames, display names, server nicknames (case-insensitive), or mentioning them.
+* **Roles**: Resolve by typing partial role names or mentioning the role.
+* **Channels**: Resolve by typing partial channel names or mentioning the channel.
+
+### 📋 General Command Suite
+| Command | Slash Command | Prefix Version | Description |
+|---|---|---|---|
+| **AFK Status** | `/afk [reason]` | `;afk [reason]` | Go AFK with nick prefixing and auto-mentions notification. |
+| **User Avatar** | `/avatar [user]` | `;avatar [user]` | View high-res avatar of any server member. |
+| **Profile Banner** | `/banner [user]` | `;banner [user]` | View profile banner image. |
+| **Server Banner** | `/serverbanner` | `;serverbanner` | View server's custom banner image. |
+| **Bot Stats** | `/botinfo` | `;botinfo` | Displays bot platform host metrics, RAM, and server sizes. |
+| **Latency** | `/ping` | `;ping` | Check websocket API latency and bot response delay. |
+| **Uptime** | `/uptime` | `;uptime` | Check process online duration. |
+| **User Information** | `/userinfo [user]` | `;userinfo [user]` | Inspect detailed user metadata, joined date, roles list, etc. |
+| **Server Information** | `/serverinfo` | `;serverinfo` | View guild creation stats, owner tag, premium boosts, etc. |
+| **Member Counts** | `/membercount` | `;membercount` | Show user count breakdown (humans, bots, total). |
+| **Server Lists** | `/list [bots/boosters]` | `;list [bots/boosters]` | Lists all bots or active server boosters. |
+
+### ⚙️ Module Configuration Inspectors
+Administrators with management permissions can inspect database configuration logs directly inside the server by executing:
+* **Anti-Nuke Protection**: `;antinuke config` / `/anti-nuke config`
+* **Audit Logs Routing**: `;logging config` / `/logging config`
+* **Onboarding Greet**: `;welcome config` / `/welcome config`
+* **Onboarding Goodbye**: `;goodbye config` / `/goodbye config`
+* **Support Tickets Hub**: `;ticket config` / `/ticket config`
+* **Auto-Moderator Filters**: `;automod config` / `/automod config`
+* **Temporary Voice Hub (JTC)**: `;jointocreate config` / `/jointocreate config`
+* **Onboarding Verification Gate**: `;verification config` / `/verification config`
+* **Leveling Rewards System**: `;leveling config` / `/leveling config`
+
 ## License
 
 RagnirBot is released under the MIT License. See [LICENSE](LICENSE) for details.

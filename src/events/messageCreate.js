@@ -31,38 +31,55 @@ class MockInteraction {
       getUser: (name) => {
         const mention = message.mentions.users.first();
         if (mention) return mention;
-        const idArg = args[0];
-        if (idArg && /^\d+$/.test(idArg)) {
-          return message.client.users.cache.get(idArg) || null;
+        const firstArg = args[0]?.trim();
+        if (!firstArg) return null;
+        if (/^\d+$/.test(firstArg)) {
+          return message.client.users.cache.get(firstArg) || null;
         }
-        return null;
+        const searchStr = firstArg.toLowerCase();
+        const found = message.guild.members.cache.find(m => 
+          m.user.username.toLowerCase().includes(searchStr) ||
+          (m.user.globalName && m.user.globalName.toLowerCase().includes(searchStr)) ||
+          (m.nickname && m.nickname.toLowerCase().includes(searchStr))
+        );
+        return found ? found.user : null;
       },
       getMember: (name) => {
         const mention = message.mentions.members.first();
         if (mention) return mention;
-        const idArg = args[0];
-        if (idArg && /^\d+$/.test(idArg)) {
-          return message.guild.members.cache.get(idArg) || null;
+        const firstArg = args[0]?.trim();
+        if (!firstArg) return null;
+        if (/^\d+$/.test(firstArg)) {
+          return message.guild.members.cache.get(firstArg) || null;
         }
-        return null;
+        const searchStr = firstArg.toLowerCase();
+        return message.guild.members.cache.find(m => 
+          m.user.username.toLowerCase().includes(searchStr) ||
+          (m.user.globalName && m.user.globalName.toLowerCase().includes(searchStr)) ||
+          (m.nickname && m.nickname.toLowerCase().includes(searchStr))
+        ) || null;
       },
       getRole: (name) => {
         const mention = message.mentions.roles.first();
         if (mention) return mention;
-        const idArg = args[0];
-        if (idArg && /^\d+$/.test(idArg)) {
-          return message.guild.roles.cache.get(idArg) || null;
+        const firstArg = args[0]?.trim();
+        if (!firstArg) return null;
+        if (/^\d+$/.test(firstArg)) {
+          return message.guild.roles.cache.get(firstArg) || null;
         }
-        return null;
+        const searchStr = firstArg.toLowerCase();
+        return message.guild.roles.cache.find(r => r.name.toLowerCase().includes(searchStr)) || null;
       },
       getChannel: (name) => {
         const mention = message.mentions.channels.first();
         if (mention) return mention;
-        const idArg = args[0];
-        if (idArg && /^\d+$/.test(idArg)) {
-          return message.guild.channels.cache.get(idArg) || null;
+        const firstArg = args[0]?.trim();
+        if (!firstArg) return null;
+        if (/^\d+$/.test(firstArg)) {
+          return message.guild.channels.cache.get(firstArg) || null;
         }
-        return null;
+        const searchStr = firstArg.toLowerCase();
+        return message.guild.channels.cache.find(c => c.name.toLowerCase().includes(searchStr)) || null;
       },
       getString: (name) => {
         const hasTargetMention = message.mentions.users.size > 0 || message.mentions.roles.size > 0 || message.mentions.channels.size > 0 || (args[0] && /^\d+$/.test(args[0]));
