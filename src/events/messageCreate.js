@@ -24,6 +24,7 @@ class MockInteraction {
     this.member = message.member;
     this.commandName = commandName;
     this.args = args;
+    this.client = message.client;
     this.replied = false;
     this.deferred = false;
 
