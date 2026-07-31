@@ -111,7 +111,7 @@ function normalizeCommandData(command) {
     };
 }
 
-async function createCategoryCommandsMenu(category, client) {
+export async function createCategoryCommandsMenu(category, client) {
     const categoryName =
         category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
     const icon = CATEGORY_ICONS[categoryName] || "🔍";

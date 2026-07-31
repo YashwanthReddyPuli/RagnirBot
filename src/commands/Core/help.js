@@ -276,8 +276,29 @@ export default {
         if (query) {
             await InteractionHelper.safeDefer(interaction);
 
+            // Clean query to strip emojis (e.g. "⚙️ Config" -> "config")
+            const cleanQuery = query.replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '').trim().toLowerCase();
+
+            if (cleanQuery === 'config') {
+                const embed = createEmbed({
+                    title: '⚙️ Module Configuration Commands',
+                    description: 'Administrators can inspect server database settings in real-time by running the config subcommand for each module.',
+                    color: 'info'
+                }).addFields(
+                    { name: '🛡️ Anti-Nuke', value: '`/anti-nuke config` or `;antinuke config`', inline: true },
+                    { name: '📝 Audit Logging', value: '`/logging config` or `;logging config`', inline: true },
+                    { name: '👋 Welcome / Goodbye', value: '`/welcome config` and `/goodbye config`', inline: true },
+                    { name: '🎫 Tickets Hub', value: '`/ticket config` or `;ticket config`', inline: true },
+                    { name: '🛡️ AutoMod Filters', value: '`/automod config` or `;automod config`', inline: true },
+                    { name: '🔊 Voice (JTC)', value: '`/jointocreate config` or `;jointocreate config`', inline: true },
+                    { name: '✅ Verification Gate', value: '`/verification config` or `;verification config`', inline: true },
+                    { name: '📊 Leveling System', value: '`/leveling config` or `;leveling config`', inline: true }
+                );
+                return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+            }
+
             // 1. Check if query is a Command Name
-            const command = client.commands.get(query.toLowerCase());
+            const command = client.commands.get(cleanQuery);
             if (command) {
                 const embed = await createCommandHelpEmbed(command, client);
                 return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
@@ -294,7 +315,7 @@ export default {
             );
             
             const matchedCategory = categoryDirs.find(
-                cat => cat.toLowerCase() === query.toLowerCase()
+                cat => cat.toLowerCase() === cleanQuery
             );
 
             if (matchedCategory) {
