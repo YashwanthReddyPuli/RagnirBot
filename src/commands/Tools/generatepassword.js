@@ -5,6 +5,7 @@ import { logger } from '../../utils/logger.js';
 import { handleInteractionError } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 export default {
+    slash: false,
     data: new SlashCommandBuilder()
         .setName('generatepassword')
         .setDescription('Generate a strong, random password')

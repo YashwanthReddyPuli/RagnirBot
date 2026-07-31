@@ -7,6 +7,7 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { getColor } from '../../config/bot.js';
 
 export default {
+    slash: false,
     data: new SlashCommandBuilder()
         .setName('define')
         .setDescription('Look up a word definition')

@@ -4,6 +4,7 @@ import { logger } from '../../utils/logger.js';
 import { getColor } from '../../config/bot.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 export default {
+    slash: false,
     data: new SlashCommandBuilder()
         .setName('unixtime')
         .setDescription('Get the current Unix timestamp'),

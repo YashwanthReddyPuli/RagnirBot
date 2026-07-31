@@ -8,6 +8,7 @@ import { getGuildConfig } from '../../services/guildConfig.js';
 import { getColor } from '../../config/bot.js';
 
 export default {
+    slash: false,
     data: new SlashCommandBuilder()
         .setName('urban')
         .setDescription('Search Urban Dictionary for definitions')

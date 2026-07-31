@@ -3,6 +3,7 @@ import { successEmbed, errorEmbed } from '../../utils/embeds.js';
 import { getGuildConfig, setGuildConfig } from '../../services/guildConfig.js';
 
 export default {
+    slash: false,
     data: new SlashCommandBuilder()
         .setName('prefix')
         .setDescription('Get or change the server prefix')

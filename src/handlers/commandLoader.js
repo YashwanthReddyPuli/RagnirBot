@@ -146,6 +146,10 @@ export async function registerCommands(client, guildId) {
 const registeredNames = new Set();
         
         for (const command of client.commands.values()) {
+            if (command.slash === false) {
+                logger.debug(`Skipping slash registration for prefix-only command: ${command.data?.name}`);
+                continue;
+            }
             if (command.data && typeof command.data.toJSON === 'function') {
                 const commandName = command.data.name;
                 

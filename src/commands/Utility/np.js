@@ -3,6 +3,7 @@ import { successEmbed, errorEmbed } from '../../utils/embeds.js';
 import { getGuildConfig, setGuildConfig } from '../../services/guildConfig.js';
 
 export default {
+    slash: false,
     data: new SlashCommandBuilder()
         .setName('np')
         .setDescription('Configure No Prefix Mode users')
