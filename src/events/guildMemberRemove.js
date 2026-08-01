@@ -22,6 +22,21 @@ export default {
             const executor = await AntiNukeService.resolveExecutor(guild, AuditLogEvent.MemberKick, user.id);
             if (executor) {
                 await AntiNukeService.checkAction(guild, executor, 'kick');
+
+                // Log kick event to mod logs channel
+                await logEvent({
+                    client: member.client,
+                    guildId: guild.id,
+                    eventType: EVENT_TYPES.MODERATION_KICK,
+                    data: {
+                        description: `Member kicked: ${user.tag}`,
+                        userId: user.id,
+                        fields: [
+                            { name: '👤 Member', value: `${user.tag} (${user.id})`, inline: true },
+                            { name: '🛡️ Moderator', value: `${executor.tag} (${executor.id})`, inline: true }
+                        ]
+                    }
+                }).catch(err => logger.error('Failed to log direct kick:', err));
             }
         }
 

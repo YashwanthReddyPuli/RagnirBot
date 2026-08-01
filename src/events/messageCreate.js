@@ -326,6 +326,31 @@ export default {
       const isOwner = BotConfig?.commands?.owners?.includes(message.author.id) || message.author.id === message.guild.ownerId;
       const hasNoPrefix = noPrefixUsers.includes(message.author.id) || isOwner;
 
+      const commandAliasMap = {
+        gcreate: { parent: 'giveaway', sub: 'create' },
+        gdelete: { parent: 'giveaway', sub: 'delete' },
+        gend: { parent: 'giveaway', sub: 'end' },
+        greroll: { parent: 'giveaway', sub: 'reroll' },
+        leveladd: { parent: 'leveling', sub: 'add' },
+        levelremove: { parent: 'leveling', sub: 'remove' },
+        levelset: { parent: 'leveling', sub: 'set' },
+        deposit: { parent: 'bank', sub: 'deposit' },
+        withdraw: { parent: 'bank', sub: 'withdraw' },
+        massban: { parent: 'mass', sub: 'ban' },
+        masskick: { parent: 'mass', sub: 'kick' },
+        baseconvert: { parent: 'tools', sub: 'baseconvert' },
+        countdown: { parent: 'tools', sub: 'countdown' },
+        generatepassword: { parent: 'tools', sub: 'generatepassword' },
+        hexcolor: { parent: 'tools', sub: 'hexcolor' },
+        randomuser: { parent: 'tools', sub: 'randomuser' },
+        shorten: { parent: 'tools', sub: 'shorten' },
+        unixtime: { parent: 'tools', sub: 'unixtime' },
+        define: { parent: 'search', sub: 'define' },
+        movie: { parent: 'search', sub: 'movie' },
+        urban: { parent: 'search', sub: 'urban' },
+        google: { parent: 'search', sub: 'google' }
+      };
+
       let isCommand = false;
       let commandName = '';
       let args = [];
@@ -339,7 +364,7 @@ export default {
       } else if (hasNoPrefix) {
         const parts = message.content.trim().split(/\s+/);
         const possibleCmd = parts[0].toLowerCase();
-        if (client.commands.has(possibleCmd)) {
+        if (client.commands.has(possibleCmd) || commandAliasMap[possibleCmd]) {
           isCommand = true;
           commandName = possibleCmd;
           args = parts.slice(1);
@@ -347,13 +372,22 @@ export default {
       }
 
       if (isCommand && commandName) {
-        const command = client.commands.get(commandName);
+        let finalCommandName = commandName;
+        let finalArgs = args;
+
+        const alias = commandAliasMap[commandName];
+        if (alias) {
+          finalCommandName = alias.parent;
+          finalArgs = [alias.sub, ...args];
+        }
+
+        const command = client.commands.get(finalCommandName);
         if (command) {
-          const mockInteraction = new MockInteraction(message, commandName, args);
+          const mockInteraction = new MockInteraction(message, finalCommandName, finalArgs);
           try {
             await command.execute(mockInteraction, config, client);
           } catch (cmdErr) {
-            logger.error(`Error executing prefix command ${commandName}:`, cmdErr);
+            logger.error(`Error executing prefix command ${finalCommandName}:`, cmdErr);
             await message.reply(`❌ **Error executing command:** ${cmdErr.message}`).catch(() => null);
           }
           return; // Stop execution: don't award XP for command usage

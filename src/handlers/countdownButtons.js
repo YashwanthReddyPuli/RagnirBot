@@ -100,7 +100,7 @@ function cleanupCountdown(countdownId, activeCountdowns) {
 
 async function countdownButtonHandler(interaction, client, args) {
     try {
-        const { activeCountdowns } = await import('../commands/Tools/countdown.js');
+        const { activeCountdowns } = await import('../commands/Tools/tools.js');
         const action = args[0];
         const countdownId = args[1];
 

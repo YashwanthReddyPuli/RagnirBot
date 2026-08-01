@@ -6,7 +6,6 @@ import { handleInteractionError } from '../../utils/errorHandler.js';
 
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 export default {
-    slash: false,
     data: new SlashCommandBuilder()
         .setName('wipedata')
         .setDescription('Delete all your personal data from the bot (irreversible)'),
