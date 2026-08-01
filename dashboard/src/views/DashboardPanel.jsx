@@ -417,7 +417,7 @@ export default function DashboardPanel({
     .then(data => {
       if (data.success) {
         // Reload warnings list
-        fetch(`/api/guilds/${guild.id}/moderation/warnings`, {
+        fetch(`/api/guilds/${guild.id}/moderation/cases`, {
           headers: { Authorization: `Bearer ${token}` }
         })
         .then(res => res.json())
@@ -1145,17 +1145,18 @@ export default function DashboardPanel({
           <div className="animate-fade-in" style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: '320px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div>
-                <h2 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 8px' }}>Warnings logs</h2>
-                <p style={{ color: '#9CA3AF', fontSize: '14px', margin: 0 }}>List warnings cases and issue new punishments.</p>
+                <h2 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 8px' }}>Moderation & Warning Logs</h2>
+                <p style={{ color: '#9CA3AF', fontSize: '14px', margin: 0 }}>Review all administrative actions (bans, kicks, timeouts, warnings) taken in Discord or via the dashboard.</p>
               </div>
 
               <div className="table-container">
                 <table>
                   <thead>
                     <tr>
-                      <th>User ID</th>
+                      <th>Action / Type</th>
+                      <th>Target User ID</th>
                       <th>Reason</th>
-                      <th>Moderator</th>
+                      <th>Moderator ID</th>
                       <th>Date</th>
                       <th>Action</th>
                     </tr>
@@ -1163,30 +1164,53 @@ export default function DashboardPanel({
                   <tbody>
                     {warnings.length === 0 ? (
                       <tr>
-                        <td colSpan="5" style={{ textAlign: 'center', color: '#4B5563', padding: '24px' }}>
-                          No warnings active on this server.
+                        <td colSpan="6" style={{ textAlign: 'center', color: '#4B5563', padding: '24px' }}>
+                          No moderation cases recorded on this server.
                         </td>
                       </tr>
                     ) : (
                       warnings.map(w => (
                         <tr key={w.id}>
-                          <td><code>{w.userId}</code></td>
+                          <td>
+                            <span style={{
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              fontSize: '11px',
+                              fontWeight: 'bold',
+                              textTransform: 'uppercase',
+                              backgroundColor: w.type === 'Warning' ? 'rgba(245, 158, 11, 0.15)' :
+                                             w.type.includes('Ban') ? 'rgba(239, 68, 68, 0.15)' :
+                                             w.type.includes('Kick') ? 'rgba(244, 63, 94, 0.15)' :
+                                             w.type.includes('Time') ? 'rgba(16, 185, 129, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                              color: w.type === 'Warning' ? '#F59E0B' :
+                                     w.type.includes('Ban') ? '#EF4444' :
+                                     w.type.includes('Kick') ? '#F43F5E' :
+                                     w.type.includes('Time') ? '#10B981' : '#6366F1'
+                            }}>
+                              {w.type}
+                            </span>
+                          </td>
+                          <td><code>{w.targetUserId}</code></td>
                           <td>{w.reason}</td>
                           <td><code>{w.moderatorId}</code></td>
-                          <td>{new Date(w.timestamp).toLocaleDateString()}</td>
+                          <td>{new Date(w.createdAt).toLocaleString()}</td>
                           <td>
-                            <button 
-                              onClick={() => handleRevokeWarning(w.userId, w.id)}
-                              style={{
-                                background: 'transparent',
-                                border: 'none',
-                                color: '#EF4444',
-                                cursor: 'pointer',
-                                fontWeight: '600'
-                              }}
-                            >
-                              Revoke
-                            </button>
+                            {w.type === 'Warning' ? (
+                              <button 
+                                onClick={() => handleRevokeWarning(w.targetUserId, w.id)}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: '#EF4444',
+                                  cursor: 'pointer',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                Revoke
+                              </button>
+                            ) : (
+                              <span style={{ color: '#64748B', fontSize: '12px' }}>Audit Log</span>
+                            )}
                           </td>
                         </tr>
                       ))

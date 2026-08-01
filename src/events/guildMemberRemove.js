@@ -8,6 +8,7 @@ import { getGuildBirthdays, deleteBirthday } from '../utils/database.js';
 import { deleteUserLevelData } from '../services/leveling.js';
 import { logger } from '../utils/logger.js';
 import { AntiNukeService } from '../services/antiNukeService.js';
+import { logModerationAction } from '../utils/moderation.js';
 
 export default {
   name: Events.GuildMemberRemove,
@@ -23,18 +24,23 @@ export default {
             if (executor) {
                 await AntiNukeService.checkAction(guild, executor, 'kick');
 
-                // Log kick event to mod logs channel
-                await logEvent({
+                const auditLogs = await guild.fetchAuditLogs({ limit: 5, type: AuditLogEvent.MemberKick }).catch(() => null);
+                const entry = auditLogs?.entries.find(e => e.targetId === user.id && Date.now() - e.createdTimestamp < 10000);
+                const reason = entry?.reason || 'No reason provided';
+
+                // Log kick event to database & channel
+                await logModerationAction({
                     client: member.client,
-                    guildId: guild.id,
-                    eventType: EVENT_TYPES.MODERATION_KICK,
-                    data: {
-                        description: `Member kicked: ${user.tag}`,
-                        userId: user.id,
-                        fields: [
-                            { name: '👤 Member', value: `${user.tag} (${user.id})`, inline: true },
-                            { name: '🛡️ Moderator', value: `${executor.tag} (${executor.id})`, inline: true }
-                        ]
+                    guild,
+                    event: {
+                        action: 'Member Kicked',
+                        target: `${user.tag} (${user.id})`,
+                        executor: `${executor.tag} (${executor.id})`,
+                        reason,
+                        metadata: {
+                            userId: user.id,
+                            moderatorId: executor.id
+                        }
                     }
                 }).catch(err => logger.error('Failed to log direct kick:', err));
             }

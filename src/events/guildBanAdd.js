@@ -1,7 +1,7 @@
 import { AuditLogEvent } from 'discord.js';
 import { logger } from '../utils/logger.js';
 import { AntiNukeService } from '../services/antiNukeService.js';
-import { logEvent, EVENT_TYPES } from '../services/loggingService.js';
+import { logModerationAction } from '../utils/moderation.js';
 
 export default {
     name: 'guildBanAdd',
@@ -19,18 +19,24 @@ export default {
                         logger.error(`Failed to unban user ${user.tag} during rollback:`, err);
                     });
                 } else {
-                    // Log the ban event to the mod logs channel
-                    await logEvent({
+                    const auditLogs = await guild.fetchAuditLogs({ limit: 5, type: AuditLogEvent.MemberBanAdd }).catch(() => null);
+                    const entry = auditLogs?.entries.find(e => e.targetId === user.id && Date.now() - e.createdTimestamp < 10000);
+                    const reason = entry?.reason || 'No reason provided';
+
+                    // Log the ban event to database & channel
+                    await logModerationAction({
                         client: guild.client,
-                        guildId: guild.id,
-                        eventType: EVENT_TYPES.MODERATION_BAN,
-                        data: {
-                            description: `Member banned: ${user.tag}`,
-                            userId: user.id,
-                            fields: [
-                                { name: '👤 Member', value: `${user.tag} (${user.id})`, inline: true },
-                                { name: '🛡️ Moderator', value: `${executor.tag} (${executor.id})`, inline: true }
-                            ]
+                        guild,
+                        event: {
+                            action: 'Member Banned',
+                            target: `${user.tag} (${user.id})`,
+                            executor: `${executor.tag} (${executor.id})`,
+                            reason,
+                            metadata: {
+                                userId: user.id,
+                                moderatorId: executor.id,
+                                permanent: true
+                            }
                         }
                     }).catch(err => logger.error('Failed to log direct ban:', err));
                 }

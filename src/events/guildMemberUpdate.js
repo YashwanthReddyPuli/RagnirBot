@@ -2,6 +2,7 @@ import { Events, EmbedBuilder, AuditLogEvent } from 'discord.js';
 import { logEvent, EVENT_TYPES } from '../services/loggingService.js';
 import { logger } from '../utils/logger.js';
 import { AntiNukeService } from '../services/antiNukeService.js';
+import { logModerationAction } from '../utils/moderation.js';
 
 export default {
   name: Events.GuildMemberUpdate,
@@ -40,35 +41,45 @@ export default {
         try {
           const executor = await AntiNukeService.resolveExecutor(newMember.guild, AuditLogEvent.MemberUpdate, newMember.user.id);
           const moderatorText = executor ? `${executor.tag} (${executor.id})` : 'Unknown Moderator';
+          const moderatorId = executor ? executor.id : null;
+
+          const auditLogs = await newMember.guild.fetchAuditLogs({ limit: 5, type: AuditLogEvent.MemberUpdate }).catch(() => null);
+          const entry = auditLogs?.entries.find(e => e.targetId === newMember.user.id && Date.now() - e.createdTimestamp < 10000);
+          const reason = entry?.reason || 'No reason provided';
           
           if (newMember.communicationDisabledUntilTimestamp && newMember.communicationDisabledUntilTimestamp > Date.now()) {
-            const expirationSec = Math.floor(newMember.communicationDisabledUntilTimestamp / 1000);
-            await logEvent({
+            const durationMs = newMember.communicationDisabledUntilTimestamp - Date.now();
+            const durationMinutes = Math.round(durationMs / 60000);
+            
+            await logModerationAction({
               client: newMember.client,
-              guildId: newMember.guild.id,
-              eventType: EVENT_TYPES.MODERATION_MUTE,
-              data: {
-                description: `Member timed out: ${newMember.user.tag}`,
-                userId: newMember.user.id,
-                fields: [
-                  { name: '👤 Member', value: `${newMember.user.tag} (${newMember.user.id})`, inline: true },
-                  { name: '🛡️ Moderator', value: moderatorText, inline: true },
-                  { name: '⏳ Expiration', value: `<t:${expirationSec}:F> (<t:${expirationSec}:R>)`, inline: false }
-                ]
+              guild: newMember.guild,
+              event: {
+                action: 'Member Timed Out',
+                target: `${newMember.user.tag} (${newMember.user.id})`,
+                executor: moderatorText,
+                reason,
+                duration: `${durationMinutes} minutes`,
+                metadata: {
+                  userId: newMember.user.id,
+                  moderatorId,
+                  durationMs
+                }
               }
             }).catch(err => logger.error('Failed to log direct timeout:', err));
           } else if (oldMember.communicationDisabledUntilTimestamp && (!newMember.communicationDisabledUntilTimestamp || newMember.communicationDisabledUntilTimestamp <= Date.now())) {
-            await logEvent({
+            await logModerationAction({
               client: newMember.client,
-              guildId: newMember.guild.id,
-              eventType: EVENT_TYPES.MODERATION_MUTE,
-              data: {
-                description: `Timeout removed: ${newMember.user.tag}`,
-                userId: newMember.user.id,
-                fields: [
-                  { name: '👤 Member', value: `${newMember.user.tag} (${newMember.user.id})`, inline: true },
-                  { name: '🛡️ Moderator', value: moderatorText, inline: true }
-                ]
+              guild: newMember.guild,
+              event: {
+                action: 'Member Untimeouted',
+                target: `${newMember.user.tag} (${newMember.user.id})`,
+                executor: moderatorText,
+                reason,
+                metadata: {
+                  userId: newMember.user.id,
+                  moderatorId
+                }
               }
             }).catch(err => logger.error('Failed to log timeout removal:', err));
           }

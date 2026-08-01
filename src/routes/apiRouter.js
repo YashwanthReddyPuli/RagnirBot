@@ -367,6 +367,55 @@ export default (client) => {
         }
     });
 
+    // Fetch all moderation cases (warnings, bans, kicks, timeouts)
+    router.get('/guilds/:guildId/moderation/cases', authMiddleware, adminGuildMiddleware, async (req, res) => {
+        try {
+            const prefix = `moderation:warnings:${req.params.guildId}:`;
+            const keys = await client.db.list(prefix);
+            const allCases = [];
+            
+            let actualKeys = Array.isArray(keys) ? keys : (keys?.value || []);
+            if (typeof keys === 'object' && !Array.isArray(keys) && !keys.value) {
+                const allDbKeys = await client.db.list() || [];
+                actualKeys = allDbKeys.filter(k => k.startsWith(prefix));
+            }
+
+            for (const key of actualKeys) {
+                const data = await client.db.get(key);
+                if (Array.isArray(data)) {
+                    allCases.push(...data.filter(w => w && w.status !== 'deleted').map(w => ({
+                        id: w.id,
+                        type: 'Warning',
+                        targetUserId: w.userId,
+                        reason: w.reason,
+                        moderatorId: w.moderatorId,
+                        createdAt: w.timestamp
+                    })));
+                }
+            }
+
+            const caseListKey = `moderation_cases_list_${req.params.guildId}`;
+            const dbCases = await client.db.get(caseListKey) || [];
+            
+            dbCases.forEach(c => {
+                allCases.push({
+                    id: c.caseId || `case_${c.createdAt}`,
+                    type: c.action || 'Unknown',
+                    targetUserId: c.targetUserId || c.target?.match(/\((\d+)\)/)?.[1] || c.target,
+                    reason: c.reason || 'No reason provided',
+                    moderatorId: c.moderatorId || c.executor?.match(/\((\d+)\)/)?.[1] || c.executor,
+                    createdAt: c.createdAt
+                });
+            });
+
+            allCases.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            res.json(allCases);
+        } catch (error) {
+            logger.error(`Error fetching cases for guild ${req.params.guildId}:`, error.message);
+            res.status(500).json({ error: 'Failed to fetch moderation cases' });
+        }
+    });
+
     // Issue a moderation warning
     router.post('/guilds/:guildId/moderation/warn', authMiddleware, adminGuildMiddleware, async (req, res) => {
         try {

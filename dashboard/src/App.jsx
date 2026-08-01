@@ -108,7 +108,7 @@ export default function App() {
     const pConfig = fetch(`/api/guilds/${guildId}/config`, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
     const pWelcome = fetch(`/api/guilds/${guildId}/welcome`, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
     const pBackups = fetch(`/api/guilds/${guildId}/backups`, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
-    const pWarnings = fetch(`/api/guilds/${guildId}/moderation/warnings`, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
+    const pWarnings = fetch(`/api/guilds/${guildId}/moderation/cases`, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
     const pRoles = fetch(`/api/guilds/${guildId}/roles`, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
     const pReactionRoles = fetch(`/api/guilds/${guildId}/reaction-roles`, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
 
